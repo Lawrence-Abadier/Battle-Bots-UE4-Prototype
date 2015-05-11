@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "SpellSystem/SpellSystem.h"
 #include "BattleBotsCharacter.h"
 #include "BattleBotsPlayerController.h"
 #include "BBotCharacter.generated.h"
+
+class ASpellSystem;
 
 UENUM(BlueprintType)
 enum class EStanceType :uint8{
@@ -25,9 +26,11 @@ struct FCharacterAttributes{
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
 	float fireResist;
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-	float frostResist;
+	float iceResist;
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
 	float lightningResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+  float holyResist;
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
 	float poisonResist;
 	UPROPERTY(EditDefaultsOnly, Category = "Defenses")
@@ -44,6 +47,8 @@ struct FCharacterAttributes{
   float bonusPoisonDmg;
   UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
   float bonusPhysicalDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "SpellCasting")
+  float globalCooldown;
 };
 
 UCLASS(Blueprintable)
@@ -64,6 +69,8 @@ public:
   /************************************************************************/
   /* Player Input and Collision                                           */
   /************************************************************************/
+public:
+  FORCEINLINE ABattleBotsPlayerController* GetBBOTController() const { return playerController; }
 private:
   // A reference to the player controller
   ABattleBotsPlayerController* playerController;
@@ -89,6 +96,12 @@ private:
   // Rotate character on mouseclick direction
   void RotateToMouseCursor();
 
+  void ChangeFacingRotation(FRotator newRotation);
+
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerChangeFacingRotation(FRotator newRotation);
+  virtual void ServerChangeFacingRotation_Implementation(FRotator newRotation);
+  virtual bool ServerChangeFacingRotation_Validate(FRotator newRotation);
   /************************************************************************/
   /* Character Attributes, Health, and Resource                           */
   /************************************************************************/
@@ -132,10 +145,10 @@ protected:
   FCharacterAttributes characterConfig;
 
   // The character's health, variables within UStructs cannot be replicated
-  UPROPERTY(EditDefaultsOnly, Category = "Attributes", Replicated)
+  UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
   float health;
   // The character's main resource, used to cast spells
-  UPROPERTY(EditDefaultsOnly, Category = "Attributes", Replicated)
+  UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
   float oil;
 
   // The maximum value for health
@@ -160,6 +173,11 @@ public:
   bool TookDamage() const;
   void SetTookDamage(bool bDamaged);
 protected:
+  // Must be overridden to handle block rating on appropriate classes
+  virtual float ProcessDamageTypes(float Damage, struct FDamageEvent const& DamageEvent);
+
+  // Process current negative/positive resistance on incoming damage type. 
+  float ProcessFinalDmgPostResist(float initialDmg, float currentResist);
 
   UFUNCTION(Reliable, Server, WithValidation)
   void ServerSetTookDamage(bool bDamaged);
@@ -186,6 +204,11 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   void CastFromSpellBar(int32 index);
 
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerCastFromSpellBar(int32 index);
+  virtual void ServerCastFromSpellBar_Implementation(int32 index);
+  virtual bool ServerCastFromSpellBar_Validate(int32 index);
+
   // Adds a spell to our Spell Bar
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   void AddSpellToBar(TSubclassOf<ASpellSystem> newSpell);
@@ -195,13 +218,12 @@ public:
   bool CanCast(float spellCost) const;
 
 private:
+  // Global cool down helper
+  float GCDHelper;
+
   // Array of spell classes in Spell-Bar, Required by GetClass()
   UPROPERTY()
   TArray<TSubclassOf<class ASpellSystem>> spellBar_Internal;
-
-  // Helper function for CastFromSpellBar
-  UFUNCTION()
-  void CastFromSpellBar_Internal(int32 index);
   
   /************************************************************************/
   /* Character State                                                      */
@@ -209,6 +231,7 @@ private:
 public:
   // Getter and Setter for IsStunned
   bool GetIsStunned() const;
+  UFUNCTION(BlueprintCallable, Category = "PlayerState")
   void SetIsStunned(bool stunned);
 
 protected:

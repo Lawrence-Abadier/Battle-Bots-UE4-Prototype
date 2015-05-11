@@ -2,35 +2,40 @@
 
 #pragma once
 
+#include "Character/BBotCharacter.h"
 #include "GameFramework/Actor.h"
 #include "SpellSystem.generated.h"
 
-class ABBotCharacter;
+//class ABBotCharacter;
 
 USTRUCT()
 struct FSpellData{
   GENERATED_USTRUCT_BODY()
 
-  UPROPERTY(EditDefaultsOnly, Category = SpellInfo)
+  UPROPERTY(EditDefaultsOnly, Category = "SpellInfo")
     FName spellName;
-  UPROPERTY(EditDefaultsOnly, Category = SpellInfo)
+  UPROPERTY(EditDefaultsOnly, Category = "SpellInfo")
     FString toolTip;
-  UPROPERTY(EditDefaultsOnly, Category = SpellInfo)
+  UPROPERTY(EditDefaultsOnly, Category = "SpellInfo")
     UTexture2D* icon;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
-    int32 spellDamage;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    float spellDamage;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     float spellCost;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     float spellDuration;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     float spellSpeed;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     float coolDown;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     float castTime;
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
     bool isPiercing;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    bool canStun;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    float stunChance;
 };
 
 UCLASS()
@@ -63,8 +68,11 @@ public:
   UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "PhysicsConfig")
   UProjectileMovementComponent* projectileMovementComp;
 
+  UPROPERTY(VisibleDefaultsOnly)
+  UParticleSystemComponent* particleComp;
+
   UPROPERTY(EditDefaultsOnly, Category = "Effects")
-  UParticleSystemComponent* spellFX;
+  UParticleSystem* spellFX;
 
   UPROPERTY(VisibleDefaultsOnly)
   UAudioComponent* audioComp;
@@ -74,31 +82,62 @@ public:
 
   // Is called when a spell collides with a player
   UFUNCTION()
-  void OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+  virtual void OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+  // Returns the damage event and type
+  UFUNCTION(BlueprintCallable, Category = "SpellSystem")
+  virtual FDamageEvent& GetDamageEvent();
 
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   float GetSpellCost() const;
 
   // Parents this spell to the caster actor
-  void SetCaster(ABBotCharacter* caster);
+  virtual void SetCaster();
+
+  // Sets the spell caster over the server
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerSetCaster();
+  virtual void ServerSetCaster_Implementation();
+  virtual bool ServerSetCaster_Validate();
 
   /** A wrapper function that determines what type of spell to cast AOE, Instant...*/
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
-    void CastSpell();
+  void CastSpell();
 
 protected:
+  FORCEINLINE virtual ABBotCharacter* GetSpellCaster() { return Caster; }
+
+  /* Handle to manage the FX timer */
+  FTimerHandle FXTimerHandle;
+
+  // Casts the current spell
+  virtual void CastSpell_Internal();
+
+  // Processes final elemental damage post item dmg modifiers
+  virtual float ProcessElementalDmg(float initialDamage);
+
+  // Destroys spell after reaching a certain range or if it collides
+  virtual void DestroySpell();
+
+  // Simulate spell explosion
+  virtual void SimulateExplosion();
+private:
   // A reference to the caster of the spell
+  UPROPERTY()
   ABBotCharacter* Caster;
 
-private:
+  // A reference to the player controller
+  ABattleBotsPlayerController* playerController;
+
+  // Spell cooldown helper
+  float CDHelper;
+
+  // Holds the default dmg event and type
+  FDamageEvent defaultDamageEvent;
 
   // Server side RPC for cast spell
   UFUNCTION(Reliable, Server, WithValidation)
   void ServerCastSpell();
   virtual void ServerCastSpell_Implementation();
   virtual bool ServerCastSpell_Validate();
-  
-  // Destroys spell after reaching a certain range or if it collides
-  void DestroySpell();
-	
 };

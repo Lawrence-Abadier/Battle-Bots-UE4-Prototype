@@ -16,10 +16,7 @@ void ABattleBotsPlayerController::PlayerTick(float DeltaTime)
 	Super::PlayerTick(DeltaTime);
 
 	// keep updating the destination every tick while desired
-	if (bMoveToMouseCursor)
-	{
-		MoveToMouseCursor();
-	}
+	MoveToMouseCursor();
 }
 
 void ABattleBotsPlayerController::SetupInputComponent()
@@ -41,7 +38,7 @@ void ABattleBotsPlayerController::MoveToMouseCursor()
 	FHitResult Hit;
 	GetHitResultUnderCursor(ECC_Visibility, false, Hit);
 
-	if (Hit.bBlockingHit)
+  if (bMoveToMouseCursor && Hit.bBlockingHit)
 	{
 		// We hit something, move there
 		SetNewMoveDestination(Hit.ImpactPoint);
@@ -54,8 +51,9 @@ void ABattleBotsPlayerController::MoveToTouchLocation(const ETouchIndex::Type Fi
 
 	// Trace to see what is under the touch location
 	FHitResult HitResult;
-	GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
-	if (HitResult.bBlockingHit)
+	//GetHitResultAtScreenPosition(ScreenSpaceLocation, CurrentClickTraceChannel, true, HitResult);
+  GetHitResultUnderCursor(ECC_Visibility, false, HitResult);
+  if (HitResult.bBlockingHit)
 	{
 		// We hit something, move there
 		SetNewMoveDestination(HitResult.ImpactPoint);
@@ -67,14 +65,16 @@ void ABattleBotsPlayerController::SetNewMoveDestination(const FVector DestLocati
 	APawn* const Pawn = GetPawn();
 	if (Pawn)
 	{
-		UNavigationSystem* const NavSys = GetWorld()->GetNavigationSystem();
+		//UNavigationSystem* const NavSys = GetWorld()->GetNavigationSystem();
 		float const Distance = FVector::Dist(DestLocation, Pawn->GetActorLocation());
+    FVector const Direction = (DestLocation - Pawn->GetActorLocation()).Rotation().Vector();
 
-		// We need to issue move command only if far enough in order for walk animation to play correctly
-		if (NavSys && (Distance > 120.0f))
-		{
-			NavSys->SimpleMoveToLocation(this, DestLocation);
-		}
+    Pawn->AddMovementInput(Direction, Distance);
+// 		// We need to issue move command only if far enough in order for walk animation to play correctly
+// 		if (NavSys && (Distance > 120.0f))
+// 		{
+// 			NavSys->SimpleMoveToLocation(this, DestLocation);
+// 		}
 	}
 }
 

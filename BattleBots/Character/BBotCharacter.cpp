@@ -2,6 +2,14 @@
 
 #include "BattleBots.h"
 #include "BBotCharacter.h"
+#include "SpellSystem/SpellSystem.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Holy.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Fire.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Ice.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Lightning.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Poison.h"
+#include "SpellSystem/DamageTypes/BBotDmgType_Physical.h"
+
 
 #define SPELL_BAR_SIZE 6
 
@@ -21,7 +29,7 @@ ABBotCharacter::ABBotCharacter(const FObjectInitializer& ObjectInitializer)
   GetCapsuleComponent()->OnComponentBeginOverlap.AddDynamic(this, &ABBotCharacter::OnCollisionOverlap);
 
   //Initialize the size of the spell bar
-  spellBar_Internal.SetNum(SPELL_BAR_SIZE, false);
+  //spellBar_Internal.SetNum(SPELL_BAR_SIZE, false);
 
   // The combat stance index
   stanceIndex = 0;
@@ -36,13 +44,21 @@ void ABBotCharacter::BeginPlay()
   Super::BeginPlay();
 
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Spawning arch char"));
-  
+
   // Sets max health/oil to the default values
   maxHealth = health;
   maxOil = oil;
 
-  playerController = Cast<ABattleBotsPlayerController>(this->GetController()->CastToPlayerController());
+  APlayerController* pc = NULL;
+  //playerController = Cast<ABattleBotsPlayerController>(this->GetController()->CastToPlayerController());
+  for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator) {
+    pc = Iterator->Get();
 
+    if (pc->IsLocalPlayerController())
+    {
+      playerController = Cast<ABattleBotsPlayerController>(pc);
+    }
+  }
   //Init the 3 stances dependant on archetype - mage, warrior, etc
   InitCombatStances();
 }
@@ -122,26 +138,62 @@ float ABBotCharacter::TakeDamage(float Damage, struct FDamageEvent const& Damage
 {
   // Prevents multiple TakeDamage calls by the same spell
   bTookDamage = true;
-  
+
   if (health <= 0.f) {
     return 0.f;
   }
 
   const float ActualDamage = Super::TakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser);
-  if (ActualDamage > 0.f) {
-    health -= ActualDamage;
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Black, TEXT("I took damage"));
+  // Process damage post resist
+  float DamageToApply = ProcessDamageTypes(ActualDamage, DamageEvent);
+
+  if (DamageToApply > 0.f) {
+    health -= DamageToApply;
+  
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("I took damage") + FString::FromInt(DamageToApply));
 
     if (health <= 0) {
       Die();
     }
     else {
-      //APawn* Pawn = EventInstigator ? EventInstigator->GetPawn() : nullptr;
-      //PlayHit(ActualDamage, DamageEvent, Pawn, DamageCauser, false);
+      // @todo: play hit animation
     }
   }
 
-  return ActualDamage;
+  return DamageToApply;
+}
+
+float ABBotCharacter::ProcessDamageTypes(float Damage, struct FDamageEvent const& DamageEvent)
+{
+  if (DamageEvent.DamageTypeClass == UBBotDmgType_Physical::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.physicalResist);
+  }
+  else if (DamageEvent.DamageTypeClass == UBBotDmgType_Ice::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.iceResist);
+  }
+  else if (DamageEvent.DamageTypeClass == UBBotDmgType_Lightning::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.lightningResist);
+  }
+  else if (DamageEvent.DamageTypeClass == UBBotDmgType_Holy::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.holyResist);
+  }
+  else if (DamageEvent.DamageTypeClass == UBBotDmgType_Poison::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.poisonResist);
+  }
+  else if (DamageEvent.DamageTypeClass == UBBotDmgType_Fire::StaticClass()) {
+    return ProcessFinalDmgPostResist(Damage, characterConfig.fireResist);
+  }
+  else {
+    return Damage;
+  }
+}
+
+
+float ABBotCharacter::ProcessFinalDmgPostResist(float initialDmg, float currentResist)
+{
+  // If the resist is negative, then apply additional damage
+  float resistModifier = 1 - FMath::Clamp(currentResist, -1.f, 1.f);
+  return FMath::Abs(initialDmg * resistModifier);
 }
 
 bool ABBotCharacter::TookDamage() const
@@ -192,31 +244,25 @@ bool ABBotCharacter::CanCast(float spellCost) const
 // Casts the spell at index
 void ABBotCharacter::CastFromSpellBar(int32 index)
 {
-  if (spellBar.IsValidIndex(index) && spellBar[index]->IsValidLowLevel()) {
+  if (Role < ROLE_Authority) {
+    ServerCastFromSpellBar(index);
+  }
+  else {
+    if (spellBar.IsValidIndex(index) && spellBar[index]->IsValidLowLevel()) {
+      float currentTime = GetWorld()->GetTimeSeconds();
 
-    float spellCost = spellBar[index]->GetSpellCost();
+      if (GCDHelper < currentTime) {
+        float spellCost = spellBar[index]->GetSpellCost();
 
-    if (CanCast(spellCost)) {
-      spellBar[index]->SetCaster(this);
-      RotateToMouseCursor();
-      spellBar[index]->CastSpell();
-      //CastFromSpellBar_Internal(index);
-      SetCurrentOil(-spellCost);
+        if (CanCast(spellCost)) {
+          RotateToMouseCursor();
+          spellBar[index]->CastSpell();
+          SetCurrentOil(-spellCost);
+          GCDHelper = currentTime + characterConfig.globalCooldown;
+        }
+      }
     }
   }
-}
-
-void ABBotCharacter::CastFromSpellBar_Internal(int32 index)
-{
-
-  FActorSpawnParameters spawnInfo;
-  spawnInfo.Owner = this;
-  spawnInfo.Instigator = Instigator;
-  spawnInfo.bNoCollisionFail = true;
-  GetWorld()->SpawnActor<ASpellSystem>(spellBar[index]->GetClass(),
-                                       GetActorLocation(),
-                                       GetActorRotation(),
-                                       spawnInfo);
 }
 
 // Add a new spell to the spell bar
@@ -224,7 +270,7 @@ void ABBotCharacter::AddSpellToBar(TSubclassOf<ASpellSystem> newSpell)
 {
   if (spellBar_Internal.Num() <= SPELL_BAR_SIZE) {
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Adding spell"));
-    spellBar_Internal.AddUnique(newSpell);
+    spellBar_Internal.Add(newSpell);
     ASpellSystem* spell = GetWorld()->SpawnActor<ASpellSystem>(newSpell);
     spellBar.Add(spell);
   }
@@ -235,7 +281,6 @@ void ABBotCharacter::RotateToMouseCursor()
 {
   ABBotCharacter* const playerCharacter = this;
   if (playerCharacter) {
-    //APlayerController* test = GetOwningPlayerController();
     // Get hit location under mouse click
     FHitResult hit;
     playerController->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, hit);
@@ -252,8 +297,30 @@ void ABBotCharacter::RotateToMouseCursor()
 
     // Stop current movement,and face the new direction
     playerController->StopMovement();
-    playerCharacter->SetActorRotation(newRotation);
+    //playerCharacter->SetActorRotation(newRotation);
+    playerCharacter->ChangeFacingRotation(newRotation);
   }
+}
+
+
+void ABBotCharacter::ChangeFacingRotation(FRotator newRotation)
+{
+  if (Role < ROLE_Authority) {
+    ServerChangeFacingRotation(newRotation);
+  }
+//  else {
+    this->SetActorRotation(newRotation);
+//  }
+}
+
+void ABBotCharacter::ServerChangeFacingRotation_Implementation(FRotator newRotation)
+{
+  ChangeFacingRotation(newRotation);
+}
+
+bool ABBotCharacter::ServerChangeFacingRotation_Validate(FRotator newRotation)
+{
+  return true;
 }
 
 void ABBotCharacter::OnJumpStart()
@@ -292,6 +359,7 @@ bool ABBotCharacter::ServerSetIsStunned_Validate(bool stunned)
 
 void ABBotCharacter::OnRep_IsStunned()
 {
+  this->DisableInput(playerController);
   // @todo: stop character movement while stunned
 }
 
@@ -372,9 +440,9 @@ void ABBotCharacter::SwitchCombatStanceHelper(bool bScrolled)
     // Setting this to true increments the stance index
     bScrolledUp = bScrolled;
     SwitchCombatStance();
+    // Reapply cooldown after switching stance
+    switchStanceCDHelper = currentTime + switchStanceCoolDown;
   }
-  // Reapply cooldown after switching stance
-  switchStanceCDHelper = currentTime + switchStanceCoolDown;
 }
 
 void ABBotCharacter::SwitchCombatStance()
@@ -400,4 +468,14 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   // Replicate to every client, no special condition required
   DOREPLIFETIME(ABBotCharacter, health);
   DOREPLIFETIME(ABBotCharacter, oil);
+}
+
+void ABBotCharacter::ServerCastFromSpellBar_Implementation(int32 index)
+{
+  CastFromSpellBar(index);
+}
+
+bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index)
+{
+  return true;
 }

@@ -13,7 +13,8 @@ class BATTLEBOTS_API UBBotDmgType : public UDamageType
 {
 	GENERATED_BODY()
 	
-	
-	
+public:
+  //UBBotDmgType::UBBotDmgType() {}
+  //UBBotDmgType(const FObjectInitializer& ObjectInitializer);
 	
 };

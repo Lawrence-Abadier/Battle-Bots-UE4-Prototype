@@ -13,7 +13,9 @@ class BATTLEBOTS_API UBBotDmgType_Fire : public UBBotDmgType
 {
 	GENERATED_BODY()
 	
-	
+public:
+//   UBBotDmgType_Fire();
+//   UBBotDmgType_Fire(const FObjectInitializer& ObjectInitializer);
 	
 	
 };
