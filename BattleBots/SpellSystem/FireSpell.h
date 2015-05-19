@@ -18,6 +18,8 @@ public:
   // Returns the damage event and type
   virtual FDamageEvent& GetDamageEvent() override;
 
+/*  virtual UDamageType* GetDamageType() override;*/
+
 protected:
   FDamageEvent generalDamageEvent;
 

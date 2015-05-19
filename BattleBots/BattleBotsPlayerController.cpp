@@ -1,6 +1,7 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "Character/BBotCharacter.h"
 #include "BattleBotsPlayerController.h"
 #include "AI/Navigation/NavigationSystem.h"
 
@@ -26,6 +27,7 @@ void ABattleBotsPlayerController::SetupInputComponent()
 
 	InputComponent->BindAction("SetDestination", IE_Pressed, this, &ABattleBotsPlayerController::OnSetDestinationPressed);
 	InputComponent->BindAction("SetDestination", IE_Released, this, &ABattleBotsPlayerController::OnSetDestinationReleased);
+	InputComponent->BindAction("CastSpellOnRightClick", IE_Pressed, this, &ABattleBotsPlayerController::CastOnRightClick);
 
 	// support touch devices 
 	InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ABattleBotsPlayerController::MoveToTouchLocation);
@@ -88,4 +90,45 @@ void ABattleBotsPlayerController::OnSetDestinationReleased()
 {
 	// clear flag to indicate we should stop updating the destination
 	bMoveToMouseCursor = false;
+}
+
+bool ABattleBotsPlayerController::IsPossessedBy(ABBotCharacter* Character)
+{
+	ABBotCharacter* CurrentPawn = Cast<ABBotCharacter>(this->GetPawn());
+
+	return CurrentPawn == Character;
+}
+
+void ABattleBotsPlayerController::CastOnRightClick()
+{
+	RotateToMouseCursor();
+	ABBotCharacter* const playerCharacter = Cast<ABBotCharacter>(this->GetPawn());
+	if (playerCharacter)
+	{
+		playerCharacter->CastFromSpellBar(0);
+	}
+}
+
+void ABattleBotsPlayerController::RotateToMouseCursor()
+{
+	ABBotCharacter* const playerCharacter = Cast<ABBotCharacter>(this->GetPawn());
+	if (playerCharacter) {
+		// Get hit location under mouse click
+		FHitResult hit;
+		GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, hit);
+
+		FVector mouseHitLoc = hit.Location;
+		FVector characterLoc = playerCharacter->GetActorLocation();
+
+		// Get the target location direction
+		FVector targetLoc = (mouseHitLoc - characterLoc);
+		targetLoc.Normalize();
+
+		DrawDebugLine(GetWorld(), characterLoc, mouseHitLoc, FColor::Green, true, 0.5f, 0, 2.f);
+		FRotator newRotation(0.f, targetLoc.Rotation().Yaw, 0.f);
+
+		// Stop current movement,and face the new direction
+		StopMovement();
+		playerCharacter->SetActorRotation(newRotation);
+	}
 }

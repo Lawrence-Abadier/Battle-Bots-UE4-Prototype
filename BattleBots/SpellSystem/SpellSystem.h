@@ -88,24 +88,21 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   virtual FDamageEvent& GetDamageEvent();
 
+//   // Returns the damage type
+//   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
+//   virtual UDamageType* GetDamageType();
+
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   float GetSpellCost() const;
-
-  // Parents this spell to the caster actor
-  virtual void SetCaster();
-
-  // Sets the spell caster over the server
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetCaster();
-  virtual void ServerSetCaster_Implementation();
-  virtual bool ServerSetCaster_Validate();
 
   /** A wrapper function that determines what type of spell to cast AOE, Instant...*/
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   void CastSpell();
 
 protected:
-  FORCEINLINE virtual ABBotCharacter* GetSpellCaster() { return Caster; }
+  // Setting a member variable got GC'd, thus we have to cast a tempCaster so inherited classes can get the right spellCaster.
+  // Returns the current spell's caster
+  FORCEINLINE virtual ABBotCharacter* GetSpellCaster() { ABBotCharacter* tempCaster = Cast<ABBotCharacter>(GetInstigator()); return tempCaster; }
 
   /* Handle to manage the FX timer */
   FTimerHandle FXTimerHandle;
@@ -121,14 +118,8 @@ protected:
 
   // Simulate spell explosion
   virtual void SimulateExplosion();
+
 private:
-  // A reference to the caster of the spell
-  UPROPERTY()
-  ABBotCharacter* Caster;
-
-  // A reference to the player controller
-  ABattleBotsPlayerController* playerController;
-
   // Spell cooldown helper
   float CDHelper;
 

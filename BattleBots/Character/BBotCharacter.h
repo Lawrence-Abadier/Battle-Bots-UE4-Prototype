@@ -51,6 +51,40 @@ struct FCharacterAttributes{
   float globalCooldown;
 };
 
+USTRUCT()
+struct FSpellBuffDebuff{
+  GENERATED_USTRUCT_BODY()
+
+   UPROPERTY(EditDefaultsOnly, Category = "Movement")
+    float movementSpeed;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float blockRate;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float fireResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float iceResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float lightningResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float holyResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float poisonResist;
+  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
+    float physicalResist;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusFireDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusIceDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusLightningDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusHolyDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusPoisonDmg;
+  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
+    float bonusPhysicalDmg;
+};
+
 UCLASS(Blueprintable)
 class BATTLEBOTS_API ABBotCharacter : public ABattleBotsCharacter
 {
@@ -60,6 +94,9 @@ public:
 	// Sets default values for this character's properties
   ABBotCharacter(const FObjectInitializer& ObjectInitializer);
   
+  // Called after all components have been initialized with default values
+  virtual void PostInitializeComponents() override;
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 
@@ -71,12 +108,19 @@ public:
   /************************************************************************/
 public:
   FORCEINLINE ABattleBotsPlayerController* GetBBOTController() const { return playerController; }
+  FORCEINLINE ABattleBotsPlayerController* GetPC()
+  {
+    TObjectIterator<ABattleBotsPlayerController> Itr; //Not looping, just want the first entry
+    if (!Itr) return nullptr;  //This can happen while PIE is exiting
+    return *Itr;
+  }
+
 private:
   // A reference to the player controller
   ABattleBotsPlayerController* playerController;
 
   // Called to bind functionality to input
-	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
+  virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 
   // Called when our player collides with something
   UFUNCTION()
@@ -126,23 +170,35 @@ public:
   UFUNCTION(BlueprintCallable, Category = "PlayerCondition")
   bool IsAlive() const;
 
+  virtual void SetDamageModifier_All(float newDmgMod);
+
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerSetDamageModifier_All(float newDmgMod);
+  virtual void ServerSetDamageModifier_All_Implementation(float newDmgMod);
+  virtual bool ServerSetDamageModifier_All_Validate(float newDmgMod);
+
   // Returns the bonus fire damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Fire() const { return characterConfig.bonusFireDmg; }
+  FORCEINLINE float GetDamageModifier_Fire() const { return FMath::Clamp(characterConfig.bonusFireDmg + spellBuffDebuffConfig.bonusFireDmg, -1.f, 1.f); }
   // Returns the bonus lightning damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Lightning() const { return characterConfig.bonusLightningDmg; }
+  FORCEINLINE float GetDamageModifier_Lightning() const { return FMath::Clamp(characterConfig.bonusLightningDmg + spellBuffDebuffConfig.bonusLightningDmg, -1.f, 1.f); }
   // Returns the bonus ice damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Ice() const { return characterConfig.bonusIceDmg; }
+  FORCEINLINE float GetDamageModifier_Ice() const { return FMath::Clamp(characterConfig.bonusIceDmg + spellBuffDebuffConfig.bonusIceDmg, -1.f, 1.f); }
   // Returns the bonus holy damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Holy() const { return characterConfig.bonusHolyDmg; }
+  FORCEINLINE float GetDamageModifier_Holy() const { return FMath::Clamp(characterConfig.bonusHolyDmg + spellBuffDebuffConfig.bonusHolyDmg, -1.f, 1.f); }
   // Returns the bonus poison damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Poison() const { return characterConfig.bonusPoisonDmg; }
+  FORCEINLINE float GetDamageModifier_Poison() const { return FMath::Clamp(characterConfig.bonusPoisonDmg + spellBuffDebuffConfig.bonusPoisonDmg, -1.f, 1.f); }
   // Returns the bonus Physical damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Physical() const { return characterConfig.bonusPhysicalDmg; }
+  FORCEINLINE float GetDamageModifier_Physical() const { return FMath::Clamp(characterConfig.bonusPhysicalDmg + spellBuffDebuffConfig.bonusPhysicalDmg, -1.f, 1.f); }
 
 protected:
   // An object that holds the character configurations
-  UPROPERTY(EditDefaultsOnly, Category = Config)
+  UPROPERTY(Replicated, EditDefaultsOnly, Category = "Config")
   FCharacterAttributes characterConfig;
+
+  // Handles spell buffs and debuffs
+  // Used for stance switches preventing certain edge cases.
+  UPROPERTY(Replicated, EditDefaultsOnly, Category = "SpellBuffsDebuffs")
+  FSpellBuffDebuff spellBuffDebuffConfig;
 
   // The character's health, variables within UStructs cannot be replicated
   UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
@@ -197,9 +253,9 @@ private:
   /************************************************************************/
 public:
   // Coupled with UMG to manage character spells
-  UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "SpellBar")
+  UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadWrite, Category = "SpellBar")
   TArray<ASpellSystem*> spellBar;
-  
+
   // Casts the spell at index
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   void CastFromSpellBar(int32 index);
@@ -213,17 +269,23 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   void AddSpellToBar(TSubclassOf<ASpellSystem> newSpell);
 
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerAddSpellToBar(TSubclassOf<ASpellSystem> newSpell);
+  virtual void ServerAddSpellToBar_Implementation(TSubclassOf<ASpellSystem> newSpell);
+  virtual bool ServerAddSpellToBar_Validate(TSubclassOf<ASpellSystem> newSpell);
+
   // Checks player resource before casting
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   bool CanCast(float spellCost) const;
 
+protected:
+  // Array of spell classes in Spell-Bar, Required by GetClass()
+  UPROPERTY(Replicated)
+  TArray<TSubclassOf<class ASpellSystem>> spellBar_Internal;
+
 private:
   // Global cool down helper
   float GCDHelper;
-
-  // Array of spell classes in Spell-Bar, Required by GetClass()
-  UPROPERTY()
-  TArray<TSubclassOf<class ASpellSystem>> spellBar_Internal;
   
   /************************************************************************/
   /* Character State                                                      */
@@ -265,7 +327,7 @@ protected:
   float switchStanceCoolDown;
 
   // The 3 stances of the current archetype
-  UPROPERTY()
+  UPROPERTY(Replicated)
   TArray<EStanceType> combatStances;
 
   // The player's current combat stance
@@ -283,17 +345,21 @@ protected:
   UFUNCTION()
   virtual void OnRep_StanceChanged();
 
+  // OnRep does not run automatically on the server for C++
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerOnRep_StanceChanged();
+  virtual void ServerOnRep_StanceChanged_Implementation();
+  virtual bool ServerOnRep_StanceChanged_Validate();
+
   // Can only change current stance on the server
   UFUNCTION(Reliable, Server, WithValidation)
   void ServerSetCurrentStance(EStanceType newStance);
   virtual void ServerSetCurrentStance_Implementation(EStanceType newStance);
   virtual bool ServerSetCurrentStance_Validate(EStanceType newStance);
 
-  // Inits the stances on the server
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerInitCombatStances();
-  virtual void ServerInitCombatStances_Implementation();
-  virtual bool ServerInitCombatStances_Validate();
+  virtual void SetToMobilityStance();
+  virtual void SetToDamageStance();
+  virtual void SetToDefenseStance();
 
   // Prints debug msg of the current stance
   virtual void printCurrentStance();
@@ -309,5 +375,12 @@ private:
   // True if the player scrolls up
   bool bScrolledUp;
 
+  // Implements SS CD on the server
   void SwitchCombatStanceHelper(bool bScrolled);
+
+  // Can only switch current stance on the server
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerSwitchCombatStanceHelper(bool bScrolled);
+  virtual void ServerSwitchCombatStanceHelper_Implementation(bool bScrolled);
+  virtual bool ServerSwitchCombatStanceHelper_Validate(bool bScrolled);
 };

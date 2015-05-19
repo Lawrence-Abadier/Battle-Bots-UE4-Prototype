@@ -21,6 +21,14 @@ protected:
   // Called on stance change
   virtual void OnRep_StanceChanged() override;
 
+  virtual void SetToMobilityStance() override;
+
+  virtual void SetToDamageStance() override;
+  
+  virtual void SetToDefenseStance() override;
+
+  virtual void SetDamageModifier_All(float newDmgMod) override;
+
   // Prints a debug msg of the current stance.
   virtual void printCurrentStance() override;
 };

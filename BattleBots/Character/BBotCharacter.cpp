@@ -20,6 +20,11 @@ ABBotCharacter::ABBotCharacter(const FObjectInitializer& ObjectInitializer)
   // Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
   PrimaryActorTick.bCanEverTick = true;
 
+  //Must be true for an Actor to replicate anything
+  bReplicates = true;
+  bReplicateMovement = true;
+  bAlwaysRelevant = true;
+
   UCharacterMovementComponent* MoveComp = GetCharacterMovement();
   // Adjust jump to make it less floaty
   MoveComp->GravityScale = 1.5f;
@@ -38,6 +43,22 @@ ABBotCharacter::ABBotCharacter(const FObjectInitializer& ObjectInitializer)
   bTookDamage = false;
 }
 
+// Called after all components have been initialized with default values
+void ABBotCharacter::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    // Sets max health/oil to the default values on the server
+    maxHealth = health;
+    maxOil = oil;
+
+    //Init the 3 stances dependant on archetype - mage, warrior, etc
+    InitCombatStances();
+  }
+}
+
 // Called when the game starts or when spawned
 void ABBotCharacter::BeginPlay()
 {
@@ -45,22 +66,10 @@ void ABBotCharacter::BeginPlay()
 
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Spawning arch char"));
 
-  // Sets max health/oil to the default values
-  maxHealth = health;
-  maxOil = oil;
+  playerController = GetPC();
 
-  APlayerController* pc = NULL;
-  //playerController = Cast<ABattleBotsPlayerController>(this->GetController()->CastToPlayerController());
-  for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator) {
-    pc = Iterator->Get();
-
-    if (pc->IsLocalPlayerController())
-    {
-      playerController = Cast<ABattleBotsPlayerController>(pc);
-    }
-  }
-  //Init the 3 stances dependant on archetype - mage, warrior, etc
-  InitCombatStances();
+  // Is called to ensure that the default stance is triggered on spawn
+  OnRep_StanceChanged();
 }
 
 // Called every frame
@@ -74,7 +83,7 @@ void ABBotCharacter::Tick(float DeltaTime)
 void ABBotCharacter::SetupPlayerInputComponent(class UInputComponent* InputComponent)
 {
   Super::SetupPlayerInputComponent(InputComponent);
-  InputComponent->BindAction("CastSpellOnRightClick", IE_Pressed, this, &ABBotCharacter::CastOnRightClick);
+  //InputComponent->BindAction("CastSpellOnRightClick", IE_Pressed, this, &ABBotCharacter::CastOnRightClick);
   InputComponent->BindAction("Jump", IE_Pressed, this, &ABBotCharacter::OnJumpStart);
   InputComponent->BindAction("Jump", IE_Released, this, &ABBotCharacter::OnJumpEnd);
   InputComponent->BindAction("ScrollUp", IE_Pressed, this, &ABBotCharacter::OnScrollUp);
@@ -130,7 +139,7 @@ float ABBotCharacter::GetMaxOil() const
 
 bool ABBotCharacter::IsAlive() const
 {
-  return health > 0.f;
+  	return health > 0.f;
 }
 
 // Take damage and handle death
@@ -149,7 +158,7 @@ float ABBotCharacter::TakeDamage(float Damage, struct FDamageEvent const& Damage
 
   if (DamageToApply > 0.f) {
     health -= DamageToApply;
-  
+
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("I took damage") + FString::FromInt(DamageToApply));
 
     if (health <= 0) {
@@ -191,14 +200,33 @@ float ABBotCharacter::ProcessDamageTypes(float Damage, struct FDamageEvent const
 
 float ABBotCharacter::ProcessFinalDmgPostResist(float initialDmg, float currentResist)
 {
-  // If the resist is negative, then apply additional damage
-  float resistModifier = 1 - FMath::Clamp(currentResist, -1.f, 1.f);
-  return FMath::Abs(initialDmg * resistModifier);
+	  // If the resist is negative, then apply additional damage
+	  float resistModifier = 1 - FMath::Clamp(currentResist, -1.f, 1.f);
+	  return FMath::Abs(initialDmg * resistModifier);
 }
 
 bool ABBotCharacter::TookDamage() const
 {
   return bTookDamage;
+}
+
+void ABBotCharacter::SetDamageModifier_All(float newDmgMod)
+{
+  if (Role < ROLE_Authority) {
+    ServerSetDamageModifier_All(newDmgMod);
+  }
+
+  // Must be overriden with Super
+}
+
+void ABBotCharacter::ServerSetDamageModifier_All_Implementation(float newDmgMod)
+{
+  SetDamageModifier_All(newDmgMod);
+}
+
+bool ABBotCharacter::ServerSetDamageModifier_All_Validate(float newDmgMod)
+{
+  return true;
 }
 
 void ABBotCharacter::SetTookDamage(bool bDamaged)
@@ -255,7 +283,7 @@ void ABBotCharacter::CastFromSpellBar(int32 index)
         float spellCost = spellBar[index]->GetSpellCost();
 
         if (CanCast(spellCost)) {
-          RotateToMouseCursor();
+          //RotateToMouseCursor();
           spellBar[index]->CastSpell();
           SetCurrentOil(-spellCost);
           GCDHelper = currentTime + characterConfig.globalCooldown;
@@ -265,22 +293,58 @@ void ABBotCharacter::CastFromSpellBar(int32 index)
   }
 }
 
+void ABBotCharacter::ServerCastFromSpellBar_Implementation(int32 index)
+{
+  CastFromSpellBar(index);
+}
+
+bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index)
+{
+  return true;
+}
+
 // Add a new spell to the spell bar
 void ABBotCharacter::AddSpellToBar(TSubclassOf<ASpellSystem> newSpell)
 {
-  if (spellBar_Internal.Num() <= SPELL_BAR_SIZE) {
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Adding spell"));
-    spellBar_Internal.Add(newSpell);
-    ASpellSystem* spell = GetWorld()->SpawnActor<ASpellSystem>(newSpell);
-    spellBar.Add(spell);
+  if (Role < ROLE_Authority)
+  {
+    ServerAddSpellToBar(newSpell);
   }
+  else
+  {
+    if (spellBar_Internal.Num() <= SPELL_BAR_SIZE) {
+      GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Adding spell"));
+      spellBar_Internal.Add(newSpell);
+      
+      FActorSpawnParameters spawnInfo;
+      spawnInfo.Owner = this;
+      spawnInfo.Instigator = this;
+      spawnInfo.bNoCollisionFail = true;
+      ASpellSystem* spell = GetWorld()->SpawnActor<ASpellSystem>(newSpell, spawnInfo);
+      
+      if (spell)
+      {
+	      spellBar.Add(spell);
+      }
+    }
+  }
+}
+
+void ABBotCharacter::ServerAddSpellToBar_Implementation(TSubclassOf<ASpellSystem> newSpell)
+{
+  AddSpellToBar(newSpell);
+}
+
+bool ABBotCharacter::ServerAddSpellToBar_Validate(TSubclassOf<ASpellSystem> newSpell)
+{
+  return true;
 }
 
 // Rotate player to mouse click location
 void ABBotCharacter::RotateToMouseCursor()
 {
   ABBotCharacter* const playerCharacter = this;
-  if (playerCharacter) {
+  if (playerCharacter && playerController) {
     // Get hit location under mouse click
     FHitResult hit;
     playerController->GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, hit);
@@ -305,12 +369,11 @@ void ABBotCharacter::RotateToMouseCursor()
 
 void ABBotCharacter::ChangeFacingRotation(FRotator newRotation)
 {
+  this->SetActorRotation(newRotation);
+
   if (Role < ROLE_Authority) {
     ServerChangeFacingRotation(newRotation);
   }
-//  else {
-    this->SetActorRotation(newRotation);
-//  }
 }
 
 void ABBotCharacter::ServerChangeFacingRotation_Implementation(FRotator newRotation)
@@ -365,21 +428,7 @@ void ABBotCharacter::OnRep_IsStunned()
 
 void ABBotCharacter::InitCombatStances()
 {
-  if (Role < ROLE_Authority) {
-    ServerInitCombatStances();
-  }
-
-  // Must be overriden with Super::InitCombatStances()
-}
-
-void ABBotCharacter::ServerInitCombatStances_Implementation()
-{
-  InitCombatStances();
-}
-
-bool ABBotCharacter::ServerInitCombatStances_Validate()
-{
-  return true;
+  // Must be overriden
 }
 
 void ABBotCharacter::printCurrentStance()
@@ -392,6 +441,31 @@ void ABBotCharacter::OnRep_StanceChanged()
   // Must be overriden
 }
 
+void ABBotCharacter::ServerOnRep_StanceChanged_Implementation()
+{
+  OnRep_StanceChanged();
+}
+
+bool ABBotCharacter::ServerOnRep_StanceChanged_Validate()
+{
+  return true;
+}
+
+void ABBotCharacter::SetToMobilityStance()
+{
+  // Must be overriden
+}
+
+void ABBotCharacter::SetToDamageStance()
+{
+  // Must be overriden
+}
+
+void ABBotCharacter::SetToDefenseStance()
+{
+  // Must be overriden
+}
+
 // Getter for the current stance.
 EStanceType ABBotCharacter::GetCurrentStance() const
 {
@@ -400,10 +474,12 @@ EStanceType ABBotCharacter::GetCurrentStance() const
 // Setter for the current stance.
 void ABBotCharacter::SetCurrentStance(EStanceType newStance)
 {
-  currentStance = newStance;
-
   if (Role < ROLE_Authority) {
     ServerSetCurrentStance(newStance);
+  }
+  else
+  {
+    currentStance = newStance;
   }
 }
 
@@ -434,48 +510,67 @@ void ABBotCharacter::OnScrollDown()
 
 void ABBotCharacter::SwitchCombatStanceHelper(bool bScrolled)
 {
-  float currentTime = GetWorld()->GetTimeSeconds();
-  // If the switchStance cd is up, call SwitchCombatStance
-  if (switchStanceCDHelper < currentTime) {
-    // Setting this to true increments the stance index
-    bScrolledUp = bScrolled;
-    SwitchCombatStance();
-    // Reapply cooldown after switching stance
-    switchStanceCDHelper = currentTime + switchStanceCoolDown;
+  if (Role < ROLE_Authority)
+  {
+    ServerSwitchCombatStanceHelper(bScrolled);
+  } 
+  else
+  {
+	  float currentTime = GetWorld()->GetTimeSeconds();
+	  // If the switchStance cd is up, call SwitchCombatStance
+	  if (switchStanceCDHelper < currentTime) {
+	    // Setting this to true increments the stance index
+	    bScrolledUp = bScrolled;
+	    SwitchCombatStance();
+	    // Reapply cooldown after switching stance
+	    switchStanceCDHelper = currentTime + switchStanceCoolDown;
+	  }
   }
+}
+
+void ABBotCharacter::ServerSwitchCombatStanceHelper_Implementation(bool bScrolled)
+{
+  SwitchCombatStanceHelper(bScrolled);
+}
+
+bool ABBotCharacter::ServerSwitchCombatStanceHelper_Validate(bool bScrolled)
+{
+  return true;
 }
 
 void ABBotCharacter::SwitchCombatStance()
 {
-  stanceIndex += bScrolledUp ? 1 : -1;
-  int32 roundRobinIndex = FMath::Abs(stanceIndex) % combatStances.Num();
-
-  if (combatStances.IsValidIndex(roundRobinIndex)) {
-    currentStance = combatStances[roundRobinIndex];
-  }
-  printCurrentStance();
+	  if (HasAuthority())
+	  {
+		  stanceIndex += bScrolledUp ? 1 : -1;
+		  int32 roundRobinIndex = FMath::Abs(stanceIndex) % combatStances.Num();
+		
+		  if (combatStances.IsValidIndex(roundRobinIndex)) {
+		    //currentStance = combatStances[roundRobinIndex];
+	      SetCurrentStance(combatStances[roundRobinIndex]);
+		  }
+		  printCurrentStance();
+	  }
 }
 
 void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
 {
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
+  
   // Value is already updated locally, so we may skip it in replication step for the owner only
-  DOREPLIFETIME_CONDITION(ABBotCharacter, currentStance, COND_SkipOwner);
   DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
   DOREPLIFETIME_CONDITION(ABBotCharacter, bTookDamage, COND_SkipOwner);
+
+  // Value is only relevant to owner
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBuffDebuffConfig, COND_OwnerOnly);
 
   // Replicate to every client, no special condition required
   DOREPLIFETIME(ABBotCharacter, health);
   DOREPLIFETIME(ABBotCharacter, oil);
+  DOREPLIFETIME(ABBotCharacter, currentStance);
+  DOREPLIFETIME(ABBotCharacter, combatStances);
 }
 
-void ABBotCharacter::ServerCastFromSpellBar_Implementation(int32 index)
-{
-  CastFromSpellBar(index);
-}
-
-bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index)
-{
-  return true;
-}

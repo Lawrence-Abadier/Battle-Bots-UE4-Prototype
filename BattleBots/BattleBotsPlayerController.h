@@ -1,7 +1,11 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 #pragma once
+
 #include "GameFramework/PlayerController.h"
 #include "BattleBotsPlayerController.generated.h"
+
+
+class ABBotCharacter;
 
 UCLASS()
 class ABattleBotsPlayerController : public APlayerController
@@ -32,4 +36,12 @@ protected:
 	/** Input handlers for SetDestination action. */
 	void OnSetDestinationPressed();
 	void OnSetDestinationReleased();
+
+	// Function called on right mouse click
+	void CastOnRightClick();
+
+	// Rotate player to mouse click location
+	void RotateToMouseCursor();
+public:
+	bool IsPossessedBy(ABBotCharacter* Character);
 };
