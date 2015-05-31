@@ -68,7 +68,9 @@ void ABBotSorcerer::SetToMobilityStance()
   if (Role == ROLE_Authority)
   {
     // Increase Speed by 60%
+    SetMobilityModifier_All(0.6f);
     // Reduce Resists and Block by 20%
+    SetDefenseModifier_All(-0.2f);
     // Reduce Damage by 20%
     SetDamageModifier_All(-0.2f);
 
@@ -81,7 +83,9 @@ void ABBotSorcerer::SetToDamageStance()
   if (Role == ROLE_Authority)
   {
     // Reduce Speed by 20%
+    SetMobilityModifier_All(-0.2f);
     // Reduce Resists and Block by 20%
+    SetDefenseModifier_All(-0.2f);
     // Increase Damage by 60%
     SetDamageModifier_All(0.6f);
 
@@ -94,7 +98,9 @@ void ABBotSorcerer::SetToDefenseStance()
   if (Role == ROLE_Authority)
   {
     // Reduce Speed by 20%
+    SetMobilityModifier_All(-0.2f);
     // Increase Resists and Block by 60%
+    SetDefenseModifier_All(0.6f);
     // Reduce Damage by 20%
     SetDamageModifier_All(-0.2f);
 
@@ -111,8 +117,8 @@ void ABBotSorcerer::SetDamageModifier_All(float newDmgMod)
   else
   {
     // Resets current mod, need an item config struct
-    characterConfig.bonusFireDmg = FMath::Clamp(newDmgMod, -1.f, 1.f);
-    characterConfig.bonusLightningDmg = FMath::Clamp(newDmgMod, -1.f, 1.f);
-    characterConfig.bonusIceDmg = FMath::Clamp(newDmgMod, -1.f, 1.f);
+    characterConfig.bonusFireDmg = FMath::Clamp(GetDefaultCharConfigValues().fireResist + newDmgMod, -1.f, 1.f);
+    characterConfig.bonusLightningDmg = FMath::Clamp(GetDefaultCharConfigValues().bonusLightningDmg + newDmgMod, -1.f, 1.f);
+    characterConfig.bonusIceDmg = FMath::Clamp(GetDefaultCharConfigValues().bonusIceDmg + newDmgMod, -1.f, 1.f);
   }
 }

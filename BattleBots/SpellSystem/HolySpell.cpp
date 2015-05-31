@@ -5,6 +5,18 @@
 
 
 
+
+
+void AHolySpell::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    defaultDamageEvent.DamageTypeClass = UBBotDmgType_Holy::StaticClass();
+  }
+}
+
 float AHolySpell::ProcessElementalDmg(float initialDamage)
 {
   if (GetSpellCaster()) {
@@ -19,6 +31,5 @@ float AHolySpell::ProcessElementalDmg(float initialDamage)
 
 FDamageEvent& AHolySpell::GetDamageEvent()
 {
-  generalDamageEvent.DamageTypeClass = UBBotDmgType_Holy::StaticClass();
-  return generalDamageEvent;
+  return defaultDamageEvent;
 }

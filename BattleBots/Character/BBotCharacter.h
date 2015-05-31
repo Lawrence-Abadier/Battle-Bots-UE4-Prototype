@@ -51,40 +51,6 @@ struct FCharacterAttributes{
   float globalCooldown;
 };
 
-USTRUCT()
-struct FSpellBuffDebuff{
-  GENERATED_USTRUCT_BODY()
-
-   UPROPERTY(EditDefaultsOnly, Category = "Movement")
-    float movementSpeed;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float blockRate;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float fireResist;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float iceResist;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float lightningResist;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float holyResist;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float poisonResist;
-  UPROPERTY(EditDefaultsOnly, Category = "Defenses")
-    float physicalResist;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusFireDmg;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusIceDmg;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusLightningDmg;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusHolyDmg;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusPoisonDmg;
-  UPROPERTY(EditDefaultsOnly, Category = "BonusDamage")
-    float bonusPhysicalDmg;
-};
-
 UCLASS(Blueprintable)
 class BATTLEBOTS_API ABBotCharacter : public ABattleBotsCharacter
 {
@@ -170,12 +136,20 @@ public:
   UFUNCTION(BlueprintCallable, Category = "PlayerCondition")
   bool IsAlive() const;
 
+  // Sets the appropriate modifiers for DamageTypes speed. Ex: Bonus Fire Damage x%
   virtual void SetDamageModifier_All(float newDmgMod);
 
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetDamageModifier_All(float newDmgMod);
-  virtual void ServerSetDamageModifier_All_Implementation(float newDmgMod);
-  virtual bool ServerSetDamageModifier_All_Validate(float newDmgMod);
+  // Sets the appropriate modifiers for walk/attack speed
+  virtual void SetMobilityModifier_All(float newSpeedMod);
+
+  // Sets the appropriate modifiers for block rate and resistances
+  virtual void SetDefenseModifier_All(float newDefenseMod);
+
+  // Sets the resist all by x%
+  void SetResistAll(float newResistanceMod);
+
+  // Returns the default class values
+  FORCEINLINE FCharacterAttributes GetDefaultCharConfigValues() const { return GetClass()->GetDefaultObject<ABBotCharacter>()->characterConfig; }
 
   // Returns the bonus fire damage from items/buffs
   FORCEINLINE float GetDamageModifier_Fire() const { return FMath::Clamp(characterConfig.bonusFireDmg + spellBuffDebuffConfig.bonusFireDmg, -1.f, 1.f); }
@@ -191,14 +165,14 @@ public:
   FORCEINLINE float GetDamageModifier_Physical() const { return FMath::Clamp(characterConfig.bonusPhysicalDmg + spellBuffDebuffConfig.bonusPhysicalDmg, -1.f, 1.f); }
 
 protected:
-  // An object that holds the character configurations
+  // An object that holds the character configurations - Default Values + Stance Changes
   UPROPERTY(Replicated, EditDefaultsOnly, Category = "Config")
   FCharacterAttributes characterConfig;
 
   // Handles spell buffs and debuffs
   // Used for stance switches preventing certain edge cases.
   UPROPERTY(Replicated, EditDefaultsOnly, Category = "SpellBuffsDebuffs")
-  FSpellBuffDebuff spellBuffDebuffConfig;
+  FCharacterAttributes spellBuffDebuffConfig;
 
   // The character's health, variables within UStructs cannot be replicated
   UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
@@ -218,6 +192,20 @@ protected:
   virtual void ServerSetCurrentOil_Implementation(float decOil);
   virtual bool ServerSetCurrentOil_Validate(float decOil);
 
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerSetDamageModifier_All(float newDmgMod);
+  virtual void ServerSetDamageModifier_All_Implementation(float newDmgMod);
+  virtual bool ServerSetDamageModifier_All_Validate(float newDmgMod);
+
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerSetMobilityModifier_All(float newSpeedMod);
+  virtual void ServerSetMobilityModifier_All_Implementation(float newSpeedMod);
+  virtual bool ServerSetMobilityModifier_All_Validate(float newSpeedMod);
+
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerSetResistAll(float newResistanceMod);
+  virtual void ServerSetResistAll_Implementation(float newResistanceMod);
+  virtual bool ServerSetResistAll_Validate(float newResistanceMod);
   /************************************************************************/
   /* Damage and Death                                                     */
   /************************************************************************/

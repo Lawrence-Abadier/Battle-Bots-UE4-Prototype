@@ -6,6 +6,16 @@
 
 
 
+void ALightningSpell::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    defaultDamageEvent.DamageTypeClass = UBBotDmgType_Lightning::StaticClass();
+  }
+}
+
 float ALightningSpell::ProcessElementalDmg(float initialDamage)
 {
   if (GetSpellCaster()) {
@@ -20,6 +30,5 @@ float ALightningSpell::ProcessElementalDmg(float initialDamage)
 
 FDamageEvent& ALightningSpell::GetDamageEvent()
 {
-  generalDamageEvent.DamageTypeClass = UBBotDmgType_Lightning::StaticClass();
-  return generalDamageEvent;
+  return defaultDamageEvent;
 }

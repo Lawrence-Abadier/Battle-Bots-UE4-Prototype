@@ -6,6 +6,8 @@
 #include "SpellSystem/SpellSystem.h"
 #include "FireSpell.generated.h"
 
+DECLARE_DELEGATE(FTimerDelegate)
+
 /**
  * 
  */
@@ -15,14 +17,47 @@ class BATTLEBOTS_API AFireSpell : public ASpellSystem
   GENERATED_BODY()
 
 public:
+  // Called after all components have been initialized with default values
+  virtual void PostInitializeComponents() override;
+
+  // The enemy player takes x% of total damage every ignite tick
+  UPROPERTY(EditDefaultsOnly, Category = "FireSpellConfig")
+  float ignitePercentage;
+
+  // How often does ignite deal damage
+  UPROPERTY(EditDefaultsOnly, Category = "FireSpellConfig")
+  float igniteTick;
+
+  // How long to ignite the enemy player
+  UPROPERTY(EditDefaultsOnly, Category = "FireSpellConfig")
+  float igniteDuration;
+
   // Returns the damage event and type
   virtual FDamageEvent& GetDamageEvent() override;
 
-/*  virtual UDamageType* GetDamageType() override;*/
-
 protected:
-  FDamageEvent generalDamageEvent;
+  // Process unique spell functionality such as Ignite.
+  virtual void DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer) override;
+
+  virtual float GetFunctionalityDuration() override;
+
+  UFUNCTION()
+  void IgniteEnemy(ABBotCharacter* enemyPlayer);
 
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage) override;
+
+private:
+  // Handles the ignite timers
+  FTimerHandle igniteHandler;
+  
+  // Ignite delegate with an enemyPlayer payload
+  FTimerDelegate igniteDelegate;
+
+  // The damage done per igniteTick
+  UPROPERTY()
+  float igniteDamage;
+
+  // The initial delay for the first ignite
+  float igniteDelay;
 };

@@ -18,6 +18,7 @@ ASpellSystem::ASpellSystem()
 
   collisionComp = CreateDefaultSubobject<USphereComponent>(TEXT("CollisonComp"));
   collisionComp->OnComponentBeginOverlap.AddDynamic(this, &ASpellSystem::OnCollisionOverlapBegin);
+  collisionComp->OnComponentEndOverlap.AddDynamic(this, &ASpellSystem::OnCollisionOverlapEnd);
   RootComponent = collisionComp;
 
   spellMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("SpellMesh"));
@@ -35,9 +36,26 @@ ASpellSystem::ASpellSystem()
 
   projectileMovementComp = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComp"));
   //projectileMovementComp->AttachParent = RootComponent;
-  projectileMovementComp->InitialSpeed = spellDataInfo.spellSpeed;
   projectileMovementComp->ProjectileGravityScale = 0;
 }
+
+// Called after all components have been initialized with default values
+void ASpellSystem::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    // Sets the default damage event type
+    defaultDamageEvent.DamageTypeClass = UDamageType::StaticClass();
+
+    // Initialize the spell speed on the server
+    projectileMovementComp->InitialSpeed = spellDataInfo.spellSpeed;
+
+    damageToDeal = ProcessElementalDmg(spellDataInfo.spellDamage);
+  }
+}
+
 
 // Called when the game starts or when spawned
 void ASpellSystem::BeginPlay()
@@ -57,7 +75,6 @@ void ASpellSystem::BeginPlay()
 void ASpellSystem::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
-
 }
 
 // Called when a spell collides with a player
@@ -67,27 +84,36 @@ void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrim
   UStaticMeshComponent* staticWall = Cast<UStaticMeshComponent>(SweepResult.GetComponent());
 
   if (enemyPlayer && enemyPlayer != GetSpellCaster()) {
-    // Check if our spell damaged the enemy already
-    // 		if (!enemyPlayer->TookDamage()) {
-    enemyPlayer->TakeDamage(ProcessElementalDmg(spellDataInfo.spellDamage), GetDamageEvent(), 0, this);
-    // 		}
-    // 		// Reset tookdamage and destroy the spell
-    // 		enemyPlayer->SetTookDamage(false);
-    //     
-    //UGameplayStatics::ApplyDamage(enemyPlayer, ProcessElementalDmg(spellDataInfo.spellDamage), GetInstigatorController(), this, NULL);
-    DestroySpell();
+    if (!OverlappedActors.Contains(enemyPlayer))
+    {
+	    DealDamage(enemyPlayer);
+	    // The actor is removed on overlap end
+	    OverlappedActors.AddUnique(enemyPlayer);
+    }
   }
-  //     else if (staticWall)
-  //     {
-  //       GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, TEXT("Collided with the wall!!!"));
-  //       spellDataInfo.isPiercing = false;
-  //     }
-  // Crashing editor
-  else
+}
+
+void ASpellSystem::OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
+{
+  ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
+  
+  if (enemyPlayer)
   {
-    GetWorldTimerManager().SetTimer(FXTimerHandle, this, &ASpellSystem::DestroySpell, spellDataInfo.spellDuration, false);
+  	OverlappedActors.Remove(enemyPlayer);
   }
-  //}
+}
+
+// Deal basic projectile functionality and damage
+void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
+{
+  UGameplayStatics::ApplyDamage(enemyPlayer, damageToDeal, GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+  DealUniqueSpellFunctionality(enemyPlayer);
+  DestroySpell();
+}
+
+void ASpellSystem::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
+{
+  // Must be overriden -  Ignite , Slow, Heal, KnockBack,etc
 }
 
 float ASpellSystem::GetSpellCost() const
@@ -98,29 +124,30 @@ float ASpellSystem::GetSpellCost() const
 // No processing required for default damage types
 float ASpellSystem::ProcessElementalDmg(float initialDamage)
 {
-    return initialDamage;
+  return initialDamage;
 }
 
-void ASpellSystem::CastSpell()
+void ASpellSystem::SpawnSpell(TSubclassOf<ASpellSystem> tempSpell)
 {
   // Check to see if our spell object is valid and not deleted by GC
   if (this->IsValidLowLevel()) {
 
     if (Role < ROLE_Authority) {
-      ServerCastSpell();
+      ServerSpawnSpell(tempSpell);
     }
     else {
-      float currentTime = GetWorld()->GetTimeSeconds();
+      UWorld* const World = GetWorld();
+      float currentTime = World ? World->GetTimeSeconds() : 0.1f;
       if (CDHelper < currentTime) {
         // Check if the cool down timer is up before casting
-        CastSpell_Internal();
+        SpawnSpell_Internal(tempSpell);
         CDHelper = currentTime + spellDataInfo.coolDown;
       }
     }
   }
 }
 
-void ASpellSystem::CastSpell_Internal()
+void ASpellSystem::SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell)
 {
   if (HasAuthority())
   {
@@ -129,53 +156,56 @@ void ASpellSystem::CastSpell_Internal()
       spawnInfo.Owner = GetOwner();
       spawnInfo.Instigator = Instigator;
       spawnInfo.bNoCollisionFail = true;
-      GetWorld()->SpawnActor<ASpellSystem>(GetClass(),
+
+      spellSpawner = GetWorld()->SpawnActor<ASpellSystem>(tempSpell,
                                            GetSpellCaster()->GetActorLocation(),
                                            GetSpellCaster()->GetActorRotation(),
                                            spawnInfo);
+      // Destroy the spell after its duration is up
+      GetWorldTimerManager().SetTimer(SpellDestructionHandle, spellSpawner, &ASpellSystem::DestroySpell, spellDataInfo.spellDuration, true);
     }
   }
 }
 
-void ASpellSystem::ServerCastSpell_Implementation()
+void ASpellSystem::ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell)
 {
-  CastSpell();
+  SpawnSpell(tempSpell);
 }
 
-bool ASpellSystem::ServerCastSpell_Validate()
+bool ASpellSystem::ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell)
 {
   return true;
 }
 
 FDamageEvent& ASpellSystem::GetDamageEvent()
 {
-  defaultDamageEvent.DamageTypeClass = UDamageType::StaticClass();
   return defaultDamageEvent;
 }
 
-// UDamageType* ASpellSystem::GetDamageType()
-// {
-//   return UDamageType::StaticClass();
-// }
+float ASpellSystem::GetFunctionalityDuration()
+{
+  return 0.1;
+}
 
 void ASpellSystem::DestroySpell()
 {
   // If piercing, simulate explosion at spell death
   if (spellDataInfo.isPiercing) {
-    this->SetLifeSpan(spellDataInfo.spellDuration);
-    GetWorldTimerManager().SetTimer(FXTimerHandle, this, &ASpellSystem::SimulateExplosion, spellDataInfo.spellDuration, false);
+    GetWorldTimerManager().SetTimer(FXTimerHandle, this, &ASpellSystem::SimulateExplosion, GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle), false);
+    SetLifeSpan(GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle));
   }
   else {
     // if it is not piercing then destroy spell at contact
-    this->SetLifeSpan(0.1);
-    this->SetActorEnableCollision(false);
-    this->SetActorHiddenInGame(true);
     SimulateExplosion();
+    SetLifeSpan(GetFunctionalityDuration());
   }
 }
 
 void ASpellSystem::SimulateExplosion()
 {
+  SetActorEnableCollision(false);
+  SetActorHiddenInGame(true);
+
   // Play sound and particle effect on contact
   if (explosionSound) {
     UGameplayStatics::PlaySoundAtLocation(this, explosionSound, GetActorLocation());
@@ -184,8 +214,4 @@ void ASpellSystem::SimulateExplosion()
     UGameplayStatics::SpawnEmitterAtLocation(this, spellFX, GetActorLocation(), GetActorRotation());
   }
 }
-
-
-
-
 

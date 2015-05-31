@@ -5,6 +5,18 @@
 
 
 
+void AIceSpell::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    // Set the default damage type to ice
+    defaultDamageEvent.DamageTypeClass = UBBotDmgType_Ice::StaticClass();
+  }
+}
+
+
 float AIceSpell::ProcessElementalDmg(float initialDamage)
 {
   if (GetSpellCaster()) {
@@ -19,6 +31,35 @@ float AIceSpell::ProcessElementalDmg(float initialDamage)
 
 FDamageEvent& AIceSpell::GetDamageEvent()
 {
-  generalDamageEvent.DamageTypeClass = UBBotDmgType_Ice::StaticClass();
-  return generalDamageEvent;
+  return defaultDamageEvent;
+}
+
+void AIceSpell::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
+{
+  // Slow the enemy movement speed
+  SlowEnemy(enemyPlayer);
+
+  // Bind enemy player to SlowEnemyEnd delegate
+  slowMovementDelegate.BindUObject(this, &AIceSpell::SlowEnemyEnd, (ABBotCharacter*)enemyPlayer);
+  // Remove the slow effect after the slow duration
+  GetWorldTimerManager().SetTimer(slowMovementHandler, slowMovementDelegate, slowDuration, false);
+}
+
+float AIceSpell::GetFunctionalityDuration()
+{
+  return slowDuration;
+}
+
+void AIceSpell::SlowEnemy(ABBotCharacter* enemyPlayer)
+{
+  //TODO: might cause bugs with stance switches
+  enemyPlayer->SetMobilityModifier_All(MakeNegative(slowPercentage));
+}
+
+void AIceSpell::SlowEnemyEnd(ABBotCharacter* enemyPlayer)
+{
+  // Reverse the slow effect once the duration is up
+  enemyPlayer->SetMobilityModifier_All(FMath::Abs(slowPercentage));
+  // Clear the timer once the duration ends
+  GetWorldTimerManager().ClearTimer(slowMovementHandler);
 }

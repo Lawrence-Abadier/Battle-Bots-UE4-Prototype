@@ -5,6 +5,18 @@
 
 
 
+
+
+void APhysicalSpell::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
+
+  if (HasAuthority())
+  {
+    defaultDamageEvent.DamageTypeClass = UBBotDmgType_Physical::StaticClass();
+  }
+}
+
 float APhysicalSpell::ProcessElementalDmg(float initialDamage)
 {
   if (GetSpellCaster()) {
@@ -19,6 +31,5 @@ float APhysicalSpell::ProcessElementalDmg(float initialDamage)
 
 FDamageEvent& APhysicalSpell::GetDamageEvent()
 {
-  generalDamageEvent.DamageTypeClass = UBBotDmgType_Physical::StaticClass();
-  return generalDamageEvent;
+  return defaultDamageEvent;
 }

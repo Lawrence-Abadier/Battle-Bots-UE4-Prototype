@@ -5,30 +5,62 @@
 
 
 
+void AFireSpell::PostInitializeComponents()
+{
+  Super::PostInitializeComponents();
 
+  if (HasAuthority())
+  {
+    // Set damage type
+    defaultDamageEvent.DamageTypeClass = UBBotDmgType_Fire::StaticClass();
+    // Set the ignite damage per ignite tick
+    igniteDamage = FMath::Clamp(ignitePercentage, 0.f, 1.f) * ProcessElementalDmg(spellDataInfo.spellDamage);
+    // Acts as an offset to prevent edge cases with odd tick durations
+    igniteDelay = igniteTick / 2;
+  }
+}
 
 float AFireSpell::ProcessElementalDmg(float initialDamage)
 {
-	  if (GetSpellCaster())
-	  {
-	    float dmgMod = 1 + FMath::Clamp(GetSpellCaster()->GetDamageModifier_Fire(), -1.f, 1.f);
-	    GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(100 * dmgMod));
-	    return FMath::Abs(initialDamage * dmgMod);
-	  }
-	  else {
-	    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Fire Caster Is null!!"));
-	    return initialDamage;
-	  }
+  if (GetSpellCaster())
+  {
+    float dmgMod = 1 + FMath::Clamp(GetSpellCaster()->GetDamageModifier_Fire(), -1.f, 1.f);
+    GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(100 * dmgMod));
+    return FMath::Abs(initialDamage * dmgMod);
+  }
+  else {
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Fire Caster Is null!!"));
+    return initialDamage;
+  }
 }
 
 FDamageEvent& AFireSpell::GetDamageEvent()
 {
-  generalDamageEvent.DamageTypeClass = UBBotDmgType_Fire::StaticClass();
-  return generalDamageEvent;
+  return defaultDamageEvent;
 }
 
-// UDamageType* AFireSpell::GetDamageType()
-// {
-//   UBBotDmgType_Fire* fireDamageType;
-//   return fireDamageType;
-// }
+// Adds an ignite dot on the player
+void AFireSpell::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
+{
+  igniteDelegate.BindUObject(this, &AFireSpell::IgniteEnemy, (ABBotCharacter*)enemyPlayer);
+
+  igniteDuration = GetFunctionalityDuration() + GetWorld()->GetTimeSeconds();
+  GetWorldTimerManager().SetTimer(igniteHandler, igniteDelegate, igniteTick, true, igniteDelay);
+}
+
+void AFireSpell::IgniteEnemy(ABBotCharacter* enemyPlayer)
+{
+  if (igniteDuration <= GetWorld()->GetTimeSeconds())
+  {
+    GetWorldTimerManager().ClearTimer(igniteHandler);
+  }
+  else
+  {
+    UGameplayStatics::ApplyDamage(enemyPlayer, igniteDamage, GetInstigatorController(), this, GetDamageType());
+  }
+}
+
+float AFireSpell::GetFunctionalityDuration()
+{
+  return GetClass()->GetDefaultObject<AFireSpell>()->igniteDuration;
+}

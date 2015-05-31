@@ -47,6 +47,9 @@ public:
 	// Sets default values for this actor's properties
 	ASpellSystem();
 
+  // Called after all components have been initialized with default values
+  virtual void PostInitializeComponents() override;
+
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
 	
@@ -83,35 +86,64 @@ public:
   // Is called when a spell collides with a player
   UFUNCTION()
   virtual void OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
-
+  
+  // Is called when a spell no longer collides with a player
+  UFUNCTION()
+  virtual void OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
+  
   // Returns the damage event and type
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   virtual FDamageEvent& GetDamageEvent();
-
-//   // Returns the damage type
-//   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
-//   virtual UDamageType* GetDamageType();
 
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   float GetSpellCost() const;
 
   /** A wrapper function that determines what type of spell to cast AOE, Instant...*/
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
-  void CastSpell();
+  void SpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
 
 protected:
-  // Setting a member variable got GC'd, thus we have to cast a tempCaster so inherited classes can get the right spellCaster.
+  // Setting a member variable was delayed due to networked serialization, thus we have to cast a tempCaster so inherited classes can get the right spellCaster.
   // Returns the current spell's caster
   FORCEINLINE virtual ABBotCharacter* GetSpellCaster() { ABBotCharacter* tempCaster = Cast<ABBotCharacter>(GetInstigator()); return tempCaster; }
+
+  // Returns the damage type of the spell
+  FORCEINLINE TSubclassOf<UDamageType> ASpellSystem::GetDamageType()
+  {
+    return GetDamageEvent().DamageTypeClass;
+  }
+  
+  //TODO: no need to replicate, it doesnt work in inherited classes
+  // The final processed damage post damage modifiers
+  float damageToDeal;
+
+  // Holds the default dmg event and type
+  FDamageEvent defaultDamageEvent;
+
+  // Manages the spawned spell
+  ASpellSystem* spellSpawner;
 
   /* Handle to manage the FX timer */
   FTimerHandle FXTimerHandle;
 
+  /* Handle to manage the FX timer */
+  FTimerHandle SpellDestructionHandle;
+
   // Casts the current spell
-  virtual void CastSpell_Internal();
+  virtual void SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell);
 
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage);
+
+  // Deals damage to the actor and manages spell death. Override spell functionality, ex: Ignite, slow, etc.
+  virtual void DealDamage(ABBotCharacter* enemyPlayer);
+  
+  // Process unique spell functionality such as Ignite, Slow, Heal, Knockback, etc.
+  virtual void DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer);
+
+  /* Returns the duration the unique functionality duration, ex: Ignite Duration
+  This prevents the spell object from getting deleted before the ignite duration is over */
+  virtual float GetFunctionalityDuration();
 
   // Destroys spell after reaching a certain range or if it collides
   virtual void DestroySpell();
@@ -120,15 +152,17 @@ protected:
   virtual void SimulateExplosion();
 
 private:
+
+  // Holds all the overlapped actors to prevent multiple calls to dealdamage
+  UPROPERTY()
+  TArray<AActor*> OverlappedActors;
+
   // Spell cooldown helper
   float CDHelper;
-
-  // Holds the default dmg event and type
-  FDamageEvent defaultDamageEvent;
-
+  
   // Server side RPC for cast spell
   UFUNCTION(Reliable, Server, WithValidation)
-  void ServerCastSpell();
-  virtual void ServerCastSpell_Implementation();
-  virtual bool ServerCastSpell_Validate();
+  void ServerSpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
+  virtual void ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell);
+  virtual bool ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell);
 };
