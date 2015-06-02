@@ -24,6 +24,7 @@ protected:
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
 
+  ABBotCharacter* ReferencePossessedPawn();
 	/** Navigate player to the current mouse cursor location. */
 	void MoveToMouseCursor();
 
@@ -37,11 +38,41 @@ protected:
 	void OnSetDestinationPressed();
 	void OnSetDestinationReleased();
 
-	// Function called on right mouse click
+	// Delegate called on right mouse click
 	void CastOnRightClick();
 
-	// Rotate player to mouse click location
+  // Delegate called on hotbar slot press
+  void HotBarSlot_One();
+  void HotBarSlot_Two();
+  void HotBarSlot_Three();
+  void HotBarSlot_Four();
+
+  // Stops updating local rotation when called
+  void OnRotatationEnd();
+	
+  // Rotate player to mouse click location
 	void RotateToMouseCursor();
-public:
+  
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerRotateToMouseCursor(FRotator newRotation);
+  void ServerRotateToMouseCursor_Implementation(FRotator newRotation);
+  bool ServerRotateToMouseCursor_Validate(FRotator newRotation);
+
+private:
+  // A reference to the possessed pawn
+  UPROPERTY()
+  ABBotCharacter* playerCharacter;
+
+  // Used for replicating rotation on the client
+  UPROPERTY(Replicated)
+  FRotator localRotation;
+
+  // Rotation is only updated if true
+  bool bRotChanged;
+
+  // A simple debug function
 	bool IsPossessedBy(ABBotCharacter* Character);
+
+  // Helper function for casting spells on hotbar
+  void CastFromSpellBarIndex(int32 index);
 };
