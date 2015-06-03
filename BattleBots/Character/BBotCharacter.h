@@ -8,6 +8,8 @@
 
 class ASpellSystem;
 
+DECLARE_DELEGATE(FTimerDelegate)
+
 UENUM(BlueprintType)
 enum class EStanceType :uint8{
   EFrost        UMETA(DisplayName = "Frost"),
@@ -272,9 +274,20 @@ protected:
   TArray<TSubclassOf<class ASpellSystem>> spellBar_Internal;
 
 private:
+  /* Handles the casting time of the spell
+  *  Timer is cleared if the player moves */
+  FTimerHandle castingSpellHandler;
+
+  // Cast spell delegate with a spellBar index payload
+  FTimerDelegate castingSpellDelegate;
+
+  // Can the play cast the spell while moving?
+  bool bCanCastWhileMoving;
+
   // Global cool down helper
   float GCDHelper;
   
+  void CastFromSpellBar_Internal(int32 index);
   /************************************************************************/
   /* Character State                                                      */
   /************************************************************************/
@@ -283,6 +296,9 @@ public:
   bool GetIsStunned() const;
   UFUNCTION(BlueprintCallable, Category = "PlayerState")
   void SetIsStunned(bool stunned);
+
+  // Knockback player
+  void KnockbackPlayer(FVector spellPosition);
 
 protected:
   // Disables character movement while true

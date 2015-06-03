@@ -1,6 +1,7 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AIController.h"
 #include "GameFramework/PlayerController.h"
 #include "BattleBotsPlayerController.generated.h"
 
@@ -18,6 +19,9 @@ public:
 protected:
 	/** True if the controlled character should navigate to the mouse cursor. */
 	uint32 bMoveToMouseCursor : 1;
+
+  // Called when the game starts or when spawned
+  virtual void BeginPlay() override;
 
 	// Begin PlayerController interface
 	virtual void PlayerTick(float DeltaTime) override;
@@ -62,6 +66,9 @@ private:
   // A reference to the possessed pawn
   UPROPERTY()
   ABBotCharacter* playerCharacter;
+
+  UPROPERTY(Replicated)
+  AAIController* tempC;
 
   // Used for replicating rotation on the client
   UPROPERTY(Replicated)

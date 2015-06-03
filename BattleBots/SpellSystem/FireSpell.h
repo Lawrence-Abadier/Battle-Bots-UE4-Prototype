@@ -41,9 +41,6 @@ protected:
 
   virtual float GetFunctionalityDuration() override;
 
-  UFUNCTION()
-  void IgniteEnemy(ABBotCharacter* enemyPlayer);
-
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage) override;
 
@@ -60,4 +57,7 @@ private:
 
   // The initial delay for the first ignite
   float igniteDelay;
+
+  UFUNCTION()
+  void IgniteEnemy(ABBotCharacter* enemyPlayer);
 };

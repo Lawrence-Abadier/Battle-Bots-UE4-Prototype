@@ -48,10 +48,6 @@ protected:
   // Returns the slow duration
   virtual float GetFunctionalityDuration() override;
 
-  // Slows the enemy movement speed
-  UFUNCTION()
-  void SlowEnemy(ABBotCharacter* enemyPlayer);
-
 private:
   // The time at the start of the slow
   float currentTime;
@@ -61,6 +57,10 @@ private:
 
   // Ignite delegate with an enemyPlayer payload
   FTimerDelegate slowMovementDelegate;
+
+  // Slows the enemy movement speed
+  UFUNCTION()
+  void SlowEnemy(ABBotCharacter* enemyPlayer);
 
   // Removes the slow effect and clears the slow timer
   UFUNCTION()

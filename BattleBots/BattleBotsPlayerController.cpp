@@ -13,6 +13,16 @@ ABattleBotsPlayerController::ABattleBotsPlayerController(const FObjectInitialize
   DefaultMouseCursor = EMouseCursor::Crosshairs;
 }
 
+void ABattleBotsPlayerController::BeginPlay()
+{
+  Super::BeginPlay();
+
+  if (HasAuthority())
+  {
+    tempC = Cast<AAIController>(this);
+  }
+}
+
 void ABattleBotsPlayerController::PlayerTick(float DeltaTime)
 {
   Super::PlayerTick(DeltaTime);
@@ -91,6 +101,8 @@ void ABattleBotsPlayerController::SetNewMoveDestination(const FVector DestLocati
     FVector const Direction = (DestLocation - Pawn->GetActorLocation()).Rotation().Vector();
 
     Pawn->AddMovementInput(Direction, Distance);
+    //tempC->Possess(Pawn);
+    //tempC->MoveToLocation(DestLocation);
     // 		// We need to issue move command only if far enough in order for walk animation to play correctly
     // 		if (NavSys && (Distance > 120.0f))
     // 		{
@@ -213,6 +225,7 @@ void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimePro
   // Value is already updated locally, so we may skip it in replication step for the owner only
   //DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, playerCharacter, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, localRotation, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, tempC, COND_OwnerOnly);
 }
 
 

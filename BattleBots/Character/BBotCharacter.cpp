@@ -78,6 +78,11 @@ void ABBotCharacter::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
 
+  if (GetCharacterMovement()->Velocity.SizeSquared() > 5  && !bCanCastWhileMoving)
+  {
+    // Stop casting the spell while the character is moving
+    GetWorldTimerManager().ClearTimer(castingSpellHandler);
+  }
 }
 
 // Called to bind functionality to input
@@ -188,7 +193,6 @@ float ABBotCharacter::ProcessDamageTypes(float Damage, struct FDamageEvent const
     return ProcessFinalDmgPostResist(Damage, characterConfig.holyResist);
   }
   else if (DamageEvent.DamageTypeClass == UBBotDmgType_Poison::StaticClass()) {
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Poison Damage"));
     return ProcessFinalDmgPostResist(Damage, characterConfig.poisonResist);
   }
   else if (DamageEvent.DamageTypeClass == UBBotDmgType_Fire::StaticClass()) {
@@ -341,8 +345,18 @@ void ABBotCharacter::CastFromSpellBar(int32 index)
         float spellCost = spellBar[index]->GetSpellCost();
 
         if (CanCast(spellCost)) {
-          //RotateToMouseCursor();
-          spellBar[index]->SpawnSpell(spellBar_Internal[index]);
+          // If the cast time is 0, change it to 0.1f to prevent an infinite wait with the timer
+          float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.1f : spellBar[index]->GetCastTime();
+
+          bCanCastWhileMoving = spellBar[index]->CastableWhileMoving();
+          
+          // RotateToMouseCursor();
+          // Attach a spellBar index payLoad to the delegate
+          castingSpellDelegate.BindUObject(this, &ABBotCharacter::CastFromSpellBar_Internal, (int32)index);
+
+          // Cast the spell after cast time in seconds
+          GetWorldTimerManager().SetTimer(castingSpellHandler, castingSpellDelegate, castTime, false);
+          
           SetCurrentOil(-spellCost);
           GCDHelper = currentTime + characterConfig.globalCooldown;
         }
@@ -360,6 +374,16 @@ bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index)
 {
   return true;
 }
+
+
+void ABBotCharacter::CastFromSpellBar_Internal(int32 index)
+{
+  if (HasAuthority())
+  {
+    spellBar[index]->SpawnSpell(spellBar_Internal[index]);
+  }
+}
+
 
 // Add a new spell to the spell bar
 void ABBotCharacter::AddSpellToBar(TSubclassOf<ASpellSystem> newSpell)
@@ -632,5 +656,13 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   DOREPLIFETIME(ABBotCharacter, oil);
   DOREPLIFETIME(ABBotCharacter, currentStance);
   DOREPLIFETIME(ABBotCharacter, combatStances);
+}
+
+void ABBotCharacter::KnockbackPlayer(FVector spellPosition)
+{
+  // @Todo: Launches character at a random direction, possible due to the spell location being too close
+  FVector kbDirection = GetActorLocation() - spellPosition;
+  FVector launchForce = (FVector)(kbDirection.Normalize() * 300); // Kb ammount
+  LaunchCharacter(launchForce, false, true);
 }
 

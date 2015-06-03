@@ -31,11 +31,17 @@ struct FSpellData{
   UPROPERTY(EditDefaultsOnly, Category = "Config")
     float castTime;
   UPROPERTY(EditDefaultsOnly, Category = "Config")
-    bool isPiercing;
+    bool bCastableWhileMoving;
   UPROPERTY(EditDefaultsOnly, Category = "Config")
-    bool canStun;
+    bool bIsPiercing;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    bool bCanStun;
   UPROPERTY(EditDefaultsOnly, Category = "Config")
     float stunChance;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    bool bKnockBack;
+  UPROPERTY(EditDefaultsOnly, Category = "Config")
+    float knockBackChance;
 };
 
 UCLASS()
@@ -98,7 +104,13 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   float GetSpellCost() const;
 
-  /** A wrapper function that determines what type of spell to cast AOE, Instant...*/
+  UFUNCTION(BlueprintCallable, Category = "SpellSystem")
+  float GetCastTime() const;
+
+  // Can the player cast the spell while moving?
+  FORCEINLINE bool CastableWhileMoving() const { return spellDataInfo.bCastableWhileMoving; }
+
+  /** Spawns a spell into the world. Manages internal spell cool down.*/
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   void SpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
 

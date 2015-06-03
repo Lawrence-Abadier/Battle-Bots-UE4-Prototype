@@ -106,6 +106,11 @@ void ASpellSystem::OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimit
 // Deal basic projectile functionality and damage
 void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
 {
+  if (spellDataInfo.bKnockBack)
+  {
+    enemyPlayer->KnockbackPlayer(GetActorLocation());
+  }
+
   UGameplayStatics::ApplyDamage(enemyPlayer, damageToDeal, GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
   DealUniqueSpellFunctionality(enemyPlayer);
   DestroySpell();
@@ -119,6 +124,11 @@ void ASpellSystem::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
 float ASpellSystem::GetSpellCost() const
 {
   return spellDataInfo.spellCost;
+}
+
+float ASpellSystem::GetCastTime() const
+{
+  return spellDataInfo.castTime;
 }
 
 // No processing required for default damage types
@@ -190,7 +200,7 @@ float ASpellSystem::GetFunctionalityDuration()
 void ASpellSystem::DestroySpell()
 {
   // If piercing, simulate explosion at spell death
-  if (spellDataInfo.isPiercing) {
+  if (spellDataInfo.bIsPiercing) {
     GetWorldTimerManager().SetTimer(FXTimerHandle, this, &ASpellSystem::SimulateExplosion, GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle), false);
     SetLifeSpan(GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle));
   }
@@ -214,4 +224,6 @@ void ASpellSystem::SimulateExplosion()
     UGameplayStatics::SpawnEmitterAtLocation(this, spellFX, GetActorLocation(), GetActorRotation());
   }
 }
+
+
 

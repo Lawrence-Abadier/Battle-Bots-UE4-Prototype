@@ -43,10 +43,6 @@ protected:
   // Returns poison dot duration
   virtual float GetFunctionalityDuration() override;
 
-  // Called on every poison tick
-  UFUNCTION()
-  void PoisonEnemy(ABBotCharacter* enemyPlayer);
-
 private:
   // Handles the ignite timers
   FTimerHandle poisonDotHandler;
@@ -59,5 +55,9 @@ private:
 
   // The initial delay before poisoning the enemy player
   float poisonDotDelay;
+
+  // Called on every poison tick
+  UFUNCTION()
+  void PoisonEnemy(ABBotCharacter* enemyPlayer);
 };
 
