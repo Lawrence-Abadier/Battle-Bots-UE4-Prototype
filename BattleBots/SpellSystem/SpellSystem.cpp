@@ -35,7 +35,6 @@ ASpellSystem::ASpellSystem()
   audioComp->AttachParent = RootComponent;
 
   projectileMovementComp = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileMovementComp"));
-  //projectileMovementComp->AttachParent = RootComponent;
   projectileMovementComp->ProjectileGravityScale = 0;
 }
 
@@ -44,13 +43,14 @@ void ASpellSystem::PostInitializeComponents()
 {
   Super::PostInitializeComponents();
 
+  // @TODO: Server side physics is too slow, find an alternative method.
+  // Initialize the spell speed, by changing velocity to direction. Directly changing PMC->initialSpeed is a known engine bug.
+  projectileMovementComp->Velocity = projectileMovementComp->Velocity.GetSafeNormal() * spellDataInfo.spellSpeed;
+
   if (HasAuthority())
   {
     // Sets the default damage event type
     defaultDamageEvent.DamageTypeClass = UDamageType::StaticClass();
-
-    // Initialize the spell speed on the server
-    projectileMovementComp->InitialSpeed = spellDataInfo.spellSpeed;
 
     damageToDeal = ProcessElementalDmg(spellDataInfo.spellDamage);
   }
@@ -171,8 +171,20 @@ void ASpellSystem::SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell)
                                            GetSpellCaster()->GetActorLocation(),
                                            GetSpellCaster()->GetActorRotation(),
                                            spawnInfo);
+      /*A Handle to manage the FX/Destruction timer.
+      * A new handle must be created every time to prevent
+      * endless timer reset with new spell spawns */
+      FTimerHandle SpellDestructionHandle;
+
+
+      // Prevents double calls of Simulate explosion from the initial timer
+      if (spellDataInfo.bIsPiercing)
+      {
+        // If piercing then simulate explosion after its duration is up.
+        GetWorldTimerManager().SetTimer(SpellDestructionHandle, spellSpawner, &ASpellSystem::SimulateExplosion, spellDataInfo.spellDuration, false);
+      }
       // Destroy the spell after its duration is up
-      GetWorldTimerManager().SetTimer(SpellDestructionHandle, spellSpawner, &ASpellSystem::DestroySpell, spellDataInfo.spellDuration, true);
+      SetLifeSpan(GetFunctionalityDuration() + spellDataInfo.spellDuration);
     }
   }
 }
@@ -199,15 +211,9 @@ float ASpellSystem::GetFunctionalityDuration()
 
 void ASpellSystem::DestroySpell()
 {
-  // If piercing, simulate explosion at spell death
-  if (spellDataInfo.bIsPiercing) {
-    GetWorldTimerManager().SetTimer(FXTimerHandle, this, &ASpellSystem::SimulateExplosion, GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle), false);
-    SetLifeSpan(GetWorldTimerManager().GetTimerRemaining(SpellDestructionHandle));
-  }
-  else {
-    // if it is not piercing then destroy spell at contact
+  if (!spellDataInfo.bIsPiercing) {
+    // If the spell is not piercing then destroy spell at contact
     SimulateExplosion();
-    SetLifeSpan(GetFunctionalityDuration());
   }
 }
 

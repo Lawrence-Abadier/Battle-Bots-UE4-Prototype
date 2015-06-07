@@ -135,12 +135,6 @@ protected:
   // Manages the spawned spell
   ASpellSystem* spellSpawner;
 
-  /* Handle to manage the FX timer */
-  FTimerHandle FXTimerHandle;
-
-  /* Handle to manage the FX timer */
-  FTimerHandle SpellDestructionHandle;
-
   // Casts the current spell
   virtual void SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell);
 
