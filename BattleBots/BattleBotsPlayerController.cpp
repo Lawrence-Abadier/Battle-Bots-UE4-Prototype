@@ -11,16 +11,19 @@ ABattleBotsPlayerController::ABattleBotsPlayerController(const FObjectInitialize
   bRotChanged = false;
   bShowMouseCursor = true;
   DefaultMouseCursor = EMouseCursor::Crosshairs;
+
+  // Allows the character to rotate to the mouse direction
+  rotObjTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
+  rotObjTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldStatic));
+
+  // Gets a location on the ground to spawn the aoe spell
+  aoeObjTypes.Add(UEngineTypes::ConvertToObjectType(ECC_WorldDynamic));
 }
 
 void ABattleBotsPlayerController::BeginPlay()
 {
   Super::BeginPlay();
 
-  if (HasAuthority())
-  {
-    tempC = Cast<AAIController>(this);
-  }
 }
 
 void ABattleBotsPlayerController::PlayerTick(float DeltaTime)
@@ -58,9 +61,6 @@ void ABattleBotsPlayerController::SetupInputComponent()
 
   InputComponent->BindAction("HotBarSlot_4", IE_Pressed, this, &ABattleBotsPlayerController::HotBarSlot_Four);
   InputComponent->BindAction("HotBarSlot_4", IE_Released, this, &ABattleBotsPlayerController::OnRotatationEnd);
-
-  // support touch devices 
-  InputComponent->BindTouch(EInputEvent::IE_Pressed, this, &ABattleBotsPlayerController::MoveToTouchLocation);
 }
 
 void ABattleBotsPlayerController::MoveToMouseCursor()
@@ -101,13 +101,6 @@ void ABattleBotsPlayerController::SetNewMoveDestination(const FVector DestLocati
     FVector const Direction = (DestLocation - Pawn->GetActorLocation()).Rotation().Vector();
 
     Pawn->AddMovementInput(Direction, Distance);
-    //tempC->Possess(Pawn);
-    //tempC->MoveToLocation(DestLocation);
-    // 		// We need to issue move command only if far enough in order for walk animation to play correctly
-    // 		if (NavSys && (Distance > 120.0f))
-    // 		{
-    // 			NavSys->SimpleMoveToLocation(this, DestLocation);
-    // 		}
   }
 }
 
@@ -140,7 +133,7 @@ void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
   RotateToMouseCursor();
   if (playerCharacter)
   {
-    playerCharacter->CastFromSpellBar(index);
+    playerCharacter->CastFromSpellBar(index, GetMouseHitLocation(aoeObjTypes));
   }
 }
 
@@ -169,6 +162,17 @@ void ABattleBotsPlayerController::HotBarSlot_Four()
   CastFromSpellBarIndex(3);
 }
 
+
+FVector ABattleBotsPlayerController::GetMouseHitLocation(const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjTypes)
+{
+  // Get hit location under mouse click
+  FHitResult hit;
+  // Get hit result under object types (Ex: Walls, Floor, Pawn, etc)
+  GetHitResultUnderCursorForObjects(ObjTypes, false, hit);
+
+  return hit.Location;
+}
+
 void ABattleBotsPlayerController::RotateToMouseCursor()
 {
   // Replicate local actor rotation as soon as the button is clicked
@@ -178,10 +182,7 @@ void ABattleBotsPlayerController::RotateToMouseCursor()
 
   if (playerCharacter) {
     // Get hit location under mouse click
-    FHitResult hit;
-    GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), true, hit);
-
-    FVector mouseHitLoc = hit.Location;
+    FVector mouseHitLoc = GetMouseHitLocation(rotObjTypes);
     FVector characterLoc = playerCharacter->GetActorLocation();
 
     // Get the target location direction
@@ -223,9 +224,7 @@ void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimePro
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
-  //DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, playerCharacter, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, localRotation, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, tempC, COND_OwnerOnly);
 }
 
 

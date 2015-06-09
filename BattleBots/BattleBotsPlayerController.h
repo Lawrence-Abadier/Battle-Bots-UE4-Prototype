@@ -66,13 +66,18 @@ private:
   // A reference to the possessed pawn
   UPROPERTY()
   ABBotCharacter* playerCharacter;
-
-  UPROPERTY(Replicated)
-  AAIController* tempC;
-
+  
   // Used for replicating rotation on the client
   UPROPERTY(Replicated)
   FRotator localRotation;
+
+  // Used for casting aoe spells. Limits spawning on the ground.
+  UPROPERTY()
+  TArray<TEnumAsByte<EObjectTypeQuery> > aoeObjTypes;
+
+  // Used for character rotation.
+  UPROPERTY()
+  TArray<TEnumAsByte<EObjectTypeQuery> > rotObjTypes;
 
   // Rotation is only updated if true
   bool bRotChanged;
@@ -82,4 +87,7 @@ private:
 
   // Helper function for casting spells on hotbar
   void CastFromSpellBarIndex(int32 index);
+
+  // Get hit location under mouse click
+  FVector GetMouseHitLocation(const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjTypes);
 };
