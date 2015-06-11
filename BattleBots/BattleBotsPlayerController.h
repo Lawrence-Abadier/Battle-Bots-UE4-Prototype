@@ -90,4 +90,10 @@ private:
 
   // Get hit location under mouse click
   FVector GetMouseHitLocation(const TArray<TEnumAsByte<EObjectTypeQuery> >& ObjTypes);
+
+  // A line trace under visibility channel
+  FHitResult SingleLineTrace(const FVector& Start, const FVector& End);
+
+  // Returns an impact point of the characters line of sight
+  FVector GetLineOfSightImpactPoint();
 };

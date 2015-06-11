@@ -130,10 +130,11 @@ ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 
 void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
 {
-  RotateToMouseCursor();
+  playerCharacter = ReferencePossessedPawn();
+  //RotateToMouseCursor();
   if (playerCharacter)
   {
-    playerCharacter->CastFromSpellBar(index, GetMouseHitLocation(aoeObjTypes));
+    playerCharacter->CastFromSpellBar(index, GetLineOfSightImpactPoint());
   }
 }
 
@@ -168,9 +169,38 @@ FVector ABattleBotsPlayerController::GetMouseHitLocation(const TArray<TEnumAsByt
   // Get hit location under mouse click
   FHitResult hit;
   // Get hit result under object types (Ex: Walls, Floor, Pawn, etc)
-  GetHitResultUnderCursorForObjects(ObjTypes, false, hit);
+  GetHitResultUnderCursorForObjects(ObjTypes, true, hit);
 
   return hit.Location;
+}
+
+FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, const FVector& End)
+{
+  FCollisionQueryParams traceParams = FCollisionQueryParams(FName(TEXT("LOS_Trace")), true, this);
+  traceParams.bTraceComplex = true;
+  traceParams.bTraceAsyncScene = true;
+  traceParams.bReturnPhysicalMaterial = false;
+
+  //Re-initialize hit info
+  FHitResult hitResult(ForceInit);
+
+  //call GetWorld() from within an actor extending class
+  GetWorld()->LineTraceSingle(
+    hitResult,        //result
+    Start,    //start
+    End, //end
+    ECC_Visibility, //collision channel
+    traceParams
+    );
+
+  DrawDebugLine(GetWorld(), Start, hitResult.Location, FColor::Red, true, -1.0f, 0, 2.f);
+  return hitResult;
+}
+
+FVector ABattleBotsPlayerController::GetLineOfSightImpactPoint()
+{
+  return SingleLineTrace(playerCharacter->GetActorLocation(),
+                         GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
 }
 
 void ABattleBotsPlayerController::RotateToMouseCursor()
