@@ -8,7 +8,7 @@
 
 class ASpellSystem;
 
-DECLARE_DELEGATE(FTimerDelegate)
+//DECLARE_DELEGATE(FTimerDelegate)
 
 UENUM(BlueprintType)
 enum class EStanceType :uint8{
@@ -248,12 +248,12 @@ public:
 
   // Casts the spell at index
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
-  void CastFromSpellBar(int32 index);
+  void CastFromSpellBar(int32 index, const FVector& HitLocation);
 
   UFUNCTION(Reliable, Server, WithValidation)
-  void ServerCastFromSpellBar(int32 index);
-  virtual void ServerCastFromSpellBar_Implementation(int32 index);
-  virtual bool ServerCastFromSpellBar_Validate(int32 index);
+  void ServerCastFromSpellBar(int32 index, const FVector& HitLocation);
+  virtual void ServerCastFromSpellBar_Implementation(int32 index, const FVector& HitLocation);
+  virtual bool ServerCastFromSpellBar_Validate(int32 index, const FVector& HitLocation);
 
   // Adds a spell to our Spell Bar
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
@@ -266,7 +266,7 @@ public:
 
   // Checks player resource before casting
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
-  bool CanCast(float spellCost) const;
+  bool CanCast(int32 spellIndex);
 
 protected:
   // Array of spell classes in Spell-Bar, Required by GetClass()
@@ -280,6 +280,9 @@ private:
 
   // Cast spell delegate with a spellBar index payload
   FTimerDelegate castingSpellDelegate;
+
+  // The cost of the current spell being cast
+  float spellCost;
 
   // Can the play cast the spell while moving?
   bool bCanCastWhileMoving;

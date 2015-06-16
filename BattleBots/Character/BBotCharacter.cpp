@@ -323,37 +323,42 @@ void ABBotCharacter::CastOnRightClick()
   // Rotate to the direction of our mouse click
   RotateToMouseCursor();
   // Cast spell from our dedicated spell bar index
-  CastFromSpellBar(0);
+  //CastFromSpellBar(0);
 }
 
-bool ABBotCharacter::CanCast(float spellCost) const
+bool ABBotCharacter::CanCast(int32 spellIndex)
 {
+  spellCost = spellBar[spellIndex]->GetSpellCost();
   return 0 <= (GetCurrentOil() - spellCost);
 }
 
 // Casts the spell at index
-void ABBotCharacter::CastFromSpellBar(int32 index)
+void ABBotCharacter::CastFromSpellBar(int32 index, const FVector& HitLocation)
 {
   if (Role < ROLE_Authority) {
-    ServerCastFromSpellBar(index);
+    if (CanCast(index))
+    {
+      // We short-circuit if we can cast to prevent unnecessary calls
+    	ServerCastFromSpellBar(index, HitLocation);
+    }
   }
   else {
     if (spellBar.IsValidIndex(index) && spellBar[index]->IsValidLowLevel()) {
       float currentTime = GetWorld()->GetTimeSeconds();
 
       if (GCDHelper < currentTime) {
-        float spellCost = spellBar[index]->GetSpellCost();
-
-        if (CanCast(spellCost)) {
-          // If the cast time is 0, change it to 0.1f to prevent an infinite wait with the timer
-          float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.1f : spellBar[index]->GetCastTime();
+        if (CanCast(index)) {
+          // If the cast time is 0, change it to 0.01f to prevent an infinite wait with the timer
+          float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.01f : spellBar[index]->GetCastTime();
 
           bCanCastWhileMoving = spellBar[index]->CastableWhileMoving();
           
-          // RotateToMouseCursor();
+          // Set the spellSpawnLocation to prevent re-binding our FTimerDelegate
+          spellBar[index]->SetSpellSpawnLocation(HitLocation);
+
           // Attach a spellBar index payLoad to the delegate
           castingSpellDelegate.BindUObject(this, &ABBotCharacter::CastFromSpellBar_Internal, (int32)index);
-
+          
           // Cast the spell after cast time in seconds
           GetWorldTimerManager().SetTimer(castingSpellHandler, castingSpellDelegate, castTime, false);
           
@@ -365,12 +370,12 @@ void ABBotCharacter::CastFromSpellBar(int32 index)
   }
 }
 
-void ABBotCharacter::ServerCastFromSpellBar_Implementation(int32 index)
+void ABBotCharacter::ServerCastFromSpellBar_Implementation(int32 index, const FVector& HitLocation)
 {
-  CastFromSpellBar(index);
+  CastFromSpellBar(index, HitLocation);
 }
 
-bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index)
+bool ABBotCharacter::ServerCastFromSpellBar_Validate(int32 index, const FVector& HitLocation)
 {
   return true;
 }
@@ -403,11 +408,17 @@ void ABBotCharacter::AddSpellToBar(TSubclassOf<ASpellSystem> newSpell)
       spawnInfo.Instigator = this;
       spawnInfo.bNoCollisionFail = true;
 
-      ASpellSystem* spell = GetWorld()->SpawnActor<ASpellSystem>(newSpell, spawnInfo);
+      ASpellSystem* spellManager = GetWorld()->SpawnActor<ASpellSystem>(newSpell, spawnInfo);
+
       
-      if (spell)
+      if (spellManager)
       {
-        spellBar.Add(spell);
+        /* Set the spellManagers' collision and hidden in game to true.
+        * Prevents them from getting GC'd */
+        spellManager->SetActorEnableCollision(false);
+        spellManager->SetActorHiddenInGame(true);
+        // Add the spellManager to the spellBar
+        spellBar.Add(spellManager);
         GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Adding spell"));
       }
     }
