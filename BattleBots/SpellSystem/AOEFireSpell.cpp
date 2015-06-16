@@ -30,7 +30,7 @@ void AAOEFireSpell::DestroySpell()
   /* The spell gets automatically destroyed after spellDuration. */
 }
 
-void AAOEFireSpell::SimulateExplosion()
+void AAOEFireSpell::SimulateExplosion_Implementation()
 {
   SetActorEnableCollision(false);
   SetActorHiddenInGame(true);

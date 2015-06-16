@@ -659,6 +659,7 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   // Value is only relevant to owner
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBuffDebuffConfig, COND_OwnerOnly);
 

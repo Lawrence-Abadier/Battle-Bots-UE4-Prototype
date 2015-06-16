@@ -23,7 +23,7 @@ void APoisonSpell::PostInitializeComponents()
 float APoisonSpell::ProcessElementalDmg(float initialDamage)
 {
   if (GetSpellCaster()) {
-    float dmgMod = 1 + FMath::Clamp(GetSpellCaster()->GetDamageModifier_Poison(), -1.f, 1.f);    
+    float dmgMod = 1 + FMath::Clamp(GetSpellCaster()->GetDamageModifier_Poison(), -1.f, 1.f);
     return FMath::Abs(initialDamage * dmgMod);
   }
   else {
@@ -39,29 +39,43 @@ FDamageEvent& APoisonSpell::GetDamageEvent()
 
 void APoisonSpell::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  // Deal poison damage per poisonTick on the enemy player
-  DealUniqueSpellFunctionality(enemyPlayer);
+  if (Role < ROLE_Authority)
+  {
+    // Deal damage only on the server
+    ServerDealDamage(enemyPlayer);
+  }
+  else
+  {
+    // Deal poison damage per poisonTick on the enemy player
+    DealUniqueSpellFunctionality(enemyPlayer);
 
-  DestroySpell();
+    DestroySpell();
+  }
 }
 
 void APoisonSpell::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
 {
-  poisonDotDelegate.BindUObject(this, &APoisonSpell::PoisonEnemy, (ABBotCharacter*)enemyPlayer);
-
-  poisonDuration = GetFunctionalityDuration() + GetWorld()->GetTimeSeconds();
-  GetWorldTimerManager().SetTimer(poisonDotHandler, poisonDotDelegate, poisonTick, true, poisonDotDelay);
+  if (HasAuthority())
+  {
+	  poisonDotDelegate.BindUObject(this, &APoisonSpell::PoisonEnemy, (ABBotCharacter*)enemyPlayer);
+	
+	  poisonDuration = GetFunctionalityDuration() + GetWorld()->GetTimeSeconds();
+	  GetWorldTimerManager().SetTimer(poisonDotHandler, poisonDotDelegate, poisonTick, true, poisonDotDelay);
+  }
 }
 
 void APoisonSpell::PoisonEnemy(ABBotCharacter* enemyPlayer)
 {
-  if (poisonDuration <= GetWorld()->GetTimeSeconds())
+  if (HasAuthority())
   {
-    GetWorldTimerManager().ClearTimer(poisonDotHandler);
-  }
-  else
-  {
-    UGameplayStatics::ApplyDamage(enemyPlayer, poisonDotDamage, GetInstigatorController(), this, GetDamageType());
+	  if (poisonDuration <= GetWorld()->GetTimeSeconds())
+	  {
+	    GetWorldTimerManager().ClearTimer(poisonDotHandler);
+	  }
+	  else
+	  {
+	    UGameplayStatics::ApplyDamage(enemyPlayer, poisonDotDamage, GetInstigatorController(), this, GetDamageType());
+	  }
   }
 }
 

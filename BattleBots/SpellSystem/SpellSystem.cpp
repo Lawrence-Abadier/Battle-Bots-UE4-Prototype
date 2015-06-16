@@ -110,14 +110,32 @@ void ASpellSystem::OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimit
 // Deal basic projectile functionality and damage
 void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  if (spellDataInfo.bKnockBack)
+  if (Role < ROLE_Authority)
   {
-    enemyPlayer->KnockbackPlayer(GetActorLocation());
+    // Deal damage only on the server
+    ServerDealDamage(enemyPlayer);
+  } 
+  else
+  {
+	  if (spellDataInfo.bKnockBack)
+	  {
+	    enemyPlayer->KnockbackPlayer(GetActorLocation());
+	  }
+	
+	  UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+	  DealUniqueSpellFunctionality(enemyPlayer);
+	  DestroySpell();
   }
+}
 
-  UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
-  DealUniqueSpellFunctionality(enemyPlayer);
-  DestroySpell();
+void ASpellSystem::ServerDealDamage_Implementation(ABBotCharacter* enemyPlayer)
+{
+  DealDamage(enemyPlayer);
+}
+
+bool ASpellSystem::ServerDealDamage_Validate(ABBotCharacter* enemyPlayer)
+{
+  return true;
 }
 
 void ASpellSystem::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
@@ -228,14 +246,18 @@ float ASpellSystem::GetFunctionalityDuration()
 
 void ASpellSystem::DestroySpell()
 {
-  if (!spellDataInfo.bIsPiercing) {
-    // If the spell is not piercing then destroy spell at contact
-    SimulateExplosion();
+  if (HasAuthority())
+  {
+	  if (!spellDataInfo.bIsPiercing) {
+	    // If the spell is not piercing then destroy spell at contact
+	    SimulateExplosion();
+	  }
   }
 }
 
-void ASpellSystem::SimulateExplosion()
+void ASpellSystem::SimulateExplosion_Implementation()
 {
+  // Multicast function that runs on both the client and the server
   SetActorEnableCollision(false);
   SetActorHiddenInGame(true);
 
@@ -298,10 +320,13 @@ void ASpellSystem::AOETick(float DeltaSeconds)
         * we have to call DealDamage to ensure the enemy players get ignited.
         */
         DealDamage(enemy);
+        //@TODO: ApplyRadialDamage is an alternative method, but would have to rewire dealdamage
       }
     }
   }
 }
+
+
 
 
 

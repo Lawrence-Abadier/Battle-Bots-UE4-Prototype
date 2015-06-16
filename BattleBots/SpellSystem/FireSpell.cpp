@@ -41,21 +41,27 @@ FDamageEvent& AFireSpell::GetDamageEvent()
 // Adds an ignite dot on the player
 void AFireSpell::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
 {
-  igniteDelegate.BindUObject(this, &AFireSpell::IgniteEnemy, (ABBotCharacter*)enemyPlayer);
-
-  igniteDuration = GetFunctionalityDuration() + GetWorld()->GetTimeSeconds();
-  GetWorldTimerManager().SetTimer(igniteHandler, igniteDelegate, igniteTick, true, igniteDelay);
+  if (HasAuthority())
+  {
+	  igniteDelegate.BindUObject(this, &AFireSpell::IgniteEnemy, (ABBotCharacter*)enemyPlayer);
+	
+	  igniteDuration = GetFunctionalityDuration() + GetWorld()->GetTimeSeconds();
+	  GetWorldTimerManager().SetTimer(igniteHandler, igniteDelegate, igniteTick, true, igniteDelay);
+  }
 }
 
 void AFireSpell::IgniteEnemy(ABBotCharacter* enemyPlayer)
 {
-  if (igniteDuration <= GetWorld()->GetTimeSeconds())
+  if (HasAuthority())
   {
-    GetWorldTimerManager().ClearTimer(igniteHandler);
-  }
-  else
-  {
-    UGameplayStatics::ApplyDamage(enemyPlayer, igniteDamage, GetInstigatorController(), this, GetDamageType());
+	  if (igniteDuration <= GetWorld()->GetTimeSeconds())
+	  {
+	    GetWorldTimerManager().ClearTimer(igniteHandler);
+	  }
+	  else
+	  {
+	    UGameplayStatics::ApplyDamage(enemyPlayer, igniteDamage, GetInstigatorController(), this, GetDamageType());
+	  }
   }
 }
 

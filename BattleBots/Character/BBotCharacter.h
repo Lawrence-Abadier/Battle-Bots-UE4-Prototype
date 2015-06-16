@@ -282,6 +282,7 @@ private:
   FTimerDelegate castingSpellDelegate;
 
   // The cost of the current spell being cast
+  UPROPERTY(Replicated)
   float spellCost;
 
   // Can the play cast the spell while moving?

@@ -161,6 +161,11 @@ protected:
   // Deals damage to the actor and manages spell death. Override spell functionality, ex: Ignite, slow, etc.
   virtual void DealDamage(ABBotCharacter* enemyPlayer);
   
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerDealDamage(ABBotCharacter* enemyPlayer);
+  virtual void ServerDealDamage_Implementation(ABBotCharacter* enemyPlayer);;
+  virtual bool ServerDealDamage_Validate(ABBotCharacter* enemyPlayer);
+
   // Process unique spell functionality such as Ignite, Slow, Heal, Knockback, etc.
   virtual void DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer);
 
@@ -185,7 +190,9 @@ protected:
   virtual void DestroySpell();
 
   // Simulate spell explosion
-  virtual void SimulateExplosion();
+  UFUNCTION(Reliable, NetMulticast)
+  void SimulateExplosion();
+  virtual void SimulateExplosion_Implementation();
 
   /* UE4 does not support multiple inheritance, 
   thus we are creating the AOETick under the spellSystem

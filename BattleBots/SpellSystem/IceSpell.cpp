@@ -35,13 +35,16 @@ FDamageEvent& AIceSpell::GetDamageEvent()
 
 void AIceSpell::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
 {
-  // Slow the enemy movement speed
-  SlowEnemy(enemyPlayer);
-
-  // Bind enemy player to SlowEnemyEnd delegate
-  slowMovementDelegate.BindUObject(this, &AIceSpell::SlowEnemyEnd, (ABBotCharacter*)enemyPlayer);
-  // Remove the slow effect after the slow duration
-  GetWorldTimerManager().SetTimer(slowMovementHandler, slowMovementDelegate, slowDuration, false);
+  if (HasAuthority())
+  {
+	  // Slow the enemy movement speed
+	  SlowEnemy(enemyPlayer);
+	
+	  // Bind enemy player to SlowEnemyEnd delegate
+	  slowMovementDelegate.BindUObject(this, &AIceSpell::SlowEnemyEnd, (ABBotCharacter*)enemyPlayer);
+	  // Remove the slow effect after the slow duration
+	  GetWorldTimerManager().SetTimer(slowMovementHandler, slowMovementDelegate, slowDuration, false);
+  }
 }
 
 float AIceSpell::GetFunctionalityDuration()
@@ -51,14 +54,20 @@ float AIceSpell::GetFunctionalityDuration()
 
 void AIceSpell::SlowEnemy(ABBotCharacter* enemyPlayer)
 {
-  //TODO: might cause bugs with stance switches
-  enemyPlayer->SetMobilityModifier_All(MakeNegative(slowPercentage));
+  if (HasAuthority())
+  {
+	  //TODO: might cause bugs with stance switches
+	  enemyPlayer->SetMobilityModifier_All(MakeNegative(slowPercentage));
+  }
 }
 
 void AIceSpell::SlowEnemyEnd(ABBotCharacter* enemyPlayer)
 {
-  // Reverse the slow effect once the duration is up
-  enemyPlayer->SetMobilityModifier_All(FMath::Abs(slowPercentage));
-  // Clear the timer once the duration ends
-  GetWorldTimerManager().ClearTimer(slowMovementHandler);
+  if (HasAuthority())
+  {
+	  // Reverse the slow effect once the duration is up
+	  enemyPlayer->SetMobilityModifier_All(FMath::Abs(slowPercentage));
+	  // Clear the timer once the duration ends
+	  GetWorldTimerManager().ClearTimer(slowMovementHandler);
+  }
 }

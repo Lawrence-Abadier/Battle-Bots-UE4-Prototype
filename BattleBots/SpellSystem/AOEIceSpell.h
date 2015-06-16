@@ -36,6 +36,6 @@ protected:
 
   /* Default AOESpells don't play a unique fx/sound at death,
   * instead uses an active fx/sound throughout the duration. */
-  virtual void SimulateExplosion() override;
+  virtual void SimulateExplosion_Implementation() override;
 
 };

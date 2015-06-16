@@ -32,7 +32,7 @@ void AAOEPoisonSpell::DestroySpell()
   /* The spell gets automatically destroyed after spellDuration. */
 }
 
-void AAOEPoisonSpell::SimulateExplosion()
+void AAOEPoisonSpell::SimulateExplosion_Implementation()
 {
   SetActorEnableCollision(false);
   SetActorHiddenInGame(true);
@@ -45,7 +45,15 @@ FVector AAOEPoisonSpell::GetSpellSpawnLocation()
 
 void AAOEPoisonSpell::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
-  // Apply damage while enemy is in the volume, then apply a poison dot.
-  Super::DealDamage(enemyPlayer);
+  if (Role < ROLE_Authority)
+  {
+    // Deal damage only on the server
+    ServerDealDamage(enemyPlayer);
+  }
+  else
+  {
+    UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+    // Apply damage while enemy is in the volume, then apply a poison dot.
+    Super::DealDamage(enemyPlayer);
+  }
 }
