@@ -52,7 +52,11 @@ void ASpellSystem::PostInitializeComponents()
     // Sets the default damage event type
     defaultDamageEvent.DamageTypeClass = UDamageType::StaticClass();
 
-    damageToDeal = ProcessElementalDmg(spellDataInfo.spellDamage);
+    SetDamageToDeal(spellDataInfo.spellDamage);
+
+    // Sets the spell dps (Used for AOETicks)
+    damagePerSecond = GetDamageToDeal() / spellDataInfo.spellDuration;
+    GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(damagePerSecond*100));
   }
 }
 
@@ -86,9 +90,9 @@ void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrim
   if (enemyPlayer && enemyPlayer != GetSpellCaster()) {
     if (!OverlappedActors.Contains(enemyPlayer))
     {
-	    DealDamage(enemyPlayer);
-	    // The actor is removed on overlap end
-	    OverlappedActors.AddUnique(enemyPlayer);
+      DealDamage(enemyPlayer);
+      // The actor is removed on overlap end
+      OverlappedActors.AddUnique(enemyPlayer);
     }
   }
 }
@@ -96,10 +100,10 @@ void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrim
 void ASpellSystem::OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex)
 {
   ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
-  
+
   if (enemyPlayer)
   {
-  	OverlappedActors.Remove(enemyPlayer);
+    OverlappedActors.Remove(enemyPlayer);
   }
 }
 
@@ -111,7 +115,7 @@ void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
     enemyPlayer->KnockbackPlayer(GetActorLocation());
   }
 
-  UGameplayStatics::ApplyDamage(enemyPlayer, damageToDeal, GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+  UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
   DealUniqueSpellFunctionality(enemyPlayer);
   DestroySpell();
 }
@@ -135,6 +139,11 @@ float ASpellSystem::GetCastTime() const
 float ASpellSystem::ProcessElementalDmg(float initialDamage)
 {
   return initialDamage;
+}
+
+FVector ASpellSystem::GetSpellSpawnLocation()
+{
+  return GetSpellCaster()->GetActorLocation();
 }
 
 void ASpellSystem::SpawnSpell(TSubclassOf<ASpellSystem> tempSpell)
@@ -167,26 +176,34 @@ void ASpellSystem::SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell)
       spawnInfo.Instigator = Instigator;
       spawnInfo.bNoCollisionFail = true;
 
+      // Spawn the spell into the world
       spellSpawner = GetWorld()->SpawnActor<ASpellSystem>(tempSpell,
-                                           GetSpellCaster()->GetActorLocation(),
-                                           GetSpellCaster()->GetActorRotation(),
-                                           spawnInfo);
-      /*A Handle to manage the FX/Destruction timer.
-      * A new handle must be created every time to prevent
-      * endless timer reset with new spell spawns */
-      FTimerHandle SpellDestructionHandle;
+        GetSpellSpawnLocation(),
+        GetSpellCaster()->GetActorRotation(),
+        spawnInfo);
 
-
-      // Prevents double calls of Simulate explosion from the initial timer
-      if (spellDataInfo.bIsPiercing)
-      {
-        // If piercing then simulate explosion after its duration is up.
-        GetWorldTimerManager().SetTimer(SpellDestructionHandle, spellSpawner, &ASpellSystem::SimulateExplosion, spellDataInfo.spellDuration, false);
-      }
-      // Destroy the spell after its duration is up
-      SetLifeSpan(GetFunctionalityDuration() + spellDataInfo.spellDuration);
+      // Process spell destruction timers
+      ProcessSpellTimers();
     }
   }
+}
+
+
+void ASpellSystem::ProcessSpellTimers()
+{
+  /*A Handle to manage the FX/Destruction timer.
+  * A new handle must be created every time to prevent
+  * endless timer reset with new spell spawns */
+  FTimerHandle SpellDestructionHandle;
+
+  // Prevents double calls of Simulate explosion from the initial timer
+  if (spellDataInfo.bIsPiercing)
+  {
+    // If piercing then simulate explosion after its duration is up.
+    GetWorldTimerManager().SetTimer(SpellDestructionHandle, spellSpawner, &ASpellSystem::SimulateExplosion, spellDataInfo.spellDuration, false);
+  }
+  // Destroy the spell after its duration is up
+  spellSpawner->SetLifeSpan(GetFunctionalityDuration() + spellDataInfo.spellDuration);
 }
 
 void ASpellSystem::ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell)
@@ -228,6 +245,61 @@ void ASpellSystem::SimulateExplosion()
   }
   if (spellFX) {
     UGameplayStatics::SpawnEmitterAtLocation(this, spellFX, GetActorLocation(), GetActorRotation());
+  }
+}
+
+float ASpellSystem::GetDamageToDeal()
+{
+  return damageToDeal;
+}
+
+void ASpellSystem::SetDamageToDeal(float newDmg)
+{
+  ServerSetDamageToDeal(newDmg);
+}
+
+void ASpellSystem::ServerSetDamageToDeal_Implementation(float newDmg)
+{
+  damageToDeal = newDmg;
+}
+
+bool ASpellSystem::ServerSetDamageToDeal_Validate(float newDmg)
+{
+  return true;
+}
+
+void ASpellSystem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+  // Value is already updated locally, so we may skip it in replication step for the owner only
+  DOREPLIFETIME_CONDITION(ASpellSystem, damageToDeal, COND_OwnerOnly);
+}
+
+void ASpellSystem::AOETick(float DeltaSeconds)
+{
+  // Get all actors overlapping the volume
+  TArray<AActor*> enemyActors;
+  collisionComp->GetOverlappingActors(enemyActors);
+
+  // Deal damage to the overlapped actors
+  for (int i = 0; i < enemyActors.Num(); i++)
+  {
+    // If the actor is not the spell caster
+    if (enemyActors[i] != GetSpellCaster())
+    {
+      ABBotCharacter* enemy = Cast<ABBotCharacter>(enemyActors[i]);
+
+      // Only apply damage if the actors capsule component is overlapping
+      if (enemy && collisionComp->IsOverlappingComponent(enemy->GetCapsuleComponent()))
+      {
+        SetDamageToDeal(ProcessElementalDmg(damagePerSecond * DeltaSeconds));
+        /* Because we are checking collision and dealing damage in tick,
+        * we have to call DealDamage to ensure the enemy players get ignited.
+        */
+        DealDamage(enemy);
+      }
+    }
   }
 }
 

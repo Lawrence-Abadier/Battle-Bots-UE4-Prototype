@@ -4,7 +4,6 @@
 #include "FireSpell.h"
 
 
-
 void AFireSpell::PostInitializeComponents()
 {
   Super::PostInitializeComponents();

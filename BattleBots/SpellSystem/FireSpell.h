@@ -6,11 +6,14 @@
 #include "SpellSystem/SpellSystem.h"
 #include "FireSpell.generated.h"
 
-DECLARE_DELEGATE(FTimerDelegate)
 
 /**
- * 
- */
+* AFireSpell is the base class for a spell to be spawned in the level.
+* AFireSpell objects are projectiles that spawn at spell caster location.
+* The projectiles get destroyed on contact. Enemies hit by the spell
+* receive an ignite dot for X durations. The duration of the ignite gets reset
+* to full duration if the enemy is hit before the duration ends.
+*/
 UCLASS()
 class BATTLEBOTS_API AFireSpell : public ASpellSystem
 {
@@ -47,7 +50,7 @@ protected:
 private:
   // Handles the ignite timers
   FTimerHandle igniteHandler;
-  
+
   // Ignite delegate with an enemyPlayer payload
   FTimerDelegate igniteDelegate;
 

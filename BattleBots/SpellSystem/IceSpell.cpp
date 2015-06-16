@@ -4,7 +4,6 @@
 #include "IceSpell.h"
 
 
-
 void AIceSpell::PostInitializeComponents()
 {
   Super::PostInitializeComponents();

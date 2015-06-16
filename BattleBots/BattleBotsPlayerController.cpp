@@ -130,8 +130,7 @@ ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 
 void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
 {
-  playerCharacter = ReferencePossessedPawn();
-  //RotateToMouseCursor();
+  RotateToMouseCursor();
   if (playerCharacter)
   {
     playerCharacter->CastFromSpellBar(index, GetLineOfSightImpactPoint());
@@ -193,7 +192,7 @@ FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, co
     traceParams
     );
 
-  DrawDebugLine(GetWorld(), Start, hitResult.Location, FColor::Red, true, -1.0f, 0, 2.f);
+  DrawDebugLine(GetWorld(), Start, hitResult.ImpactPoint, FColor::Red, true, -1.0f, 0, 2.f);
   return hitResult;
 }
 

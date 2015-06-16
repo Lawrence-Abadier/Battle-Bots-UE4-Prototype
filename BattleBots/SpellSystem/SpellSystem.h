@@ -66,6 +66,11 @@ public:
   UPROPERTY(EditDefaultsOnly, Category = Config)
   FSpellData spellDataInfo;
   
+  //TODO: no need to replicate, it doesnt work in inherited classes
+  // The final processed damage post damage modifiers
+  UPROPERTY(Replicated)
+  float damageToDeal;
+
   /** A simple collision primitive to use as the root component*/
   UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Collision")
   USphereComponent* collisionComp;
@@ -114,6 +119,16 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   void SpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
 
+  
+  virtual FVector GetSpellSpawnLocation();
+  // Set the spell spawn location (MouseHitLocation/CharacterLocation.
+  FORCEINLINE void SetSpellSpawnLocation(FVector newSpawnLocation) {
+    if (HasAuthority())
+    {
+      spellSpawnLocation = newSpawnLocation;
+    }
+  }
+
 protected:
   // Setting a member variable was delayed due to networked serialization, thus we have to cast a tempCaster so inherited classes can get the right spellCaster.
   // Returns the current spell's caster
@@ -124,10 +139,9 @@ protected:
   {
     return GetDamageEvent().DamageTypeClass;
   }
-  
-  //TODO: no need to replicate, it doesnt work in inherited classes
-  // The final processed damage post damage modifiers
-  float damageToDeal;
+
+  // The spell spawn location (MouseHitLocation/CharacterLocation.
+  FVector spellSpawnLocation;
 
   // Holds the default dmg event and type
   FDamageEvent defaultDamageEvent;
@@ -137,6 +151,9 @@ protected:
 
   // Casts the current spell
   virtual void SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell);
+
+  // Returns the spawned spell with the appropriate location. AOE spells must override this method and use HITLOC instead of GetSpellCaster()->GetActorLocation()
+/*  virtual ASpellSystem* GetSpawnedSpell(TSubclassOf<ASpellSystem> tempSpell, FActorSpawnParameters spawnParams, const FVector& HitLocation);*/
 
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage);
@@ -151,11 +168,34 @@ protected:
   This prevents the spell object from getting deleted before the ignite duration is over */
   virtual float GetFunctionalityDuration();
 
+  // Returns the final dmg to deal post dmg modifiers
+  UFUNCTION()
+  virtual float GetDamageToDeal();
+  // Applies ProcessElementalDmg to DamageToDeal over the server
+  UFUNCTION()
+  virtual void SetDamageToDeal(float newDmg);
+
+  // Server side RPC to set DamageToDeal
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerSetDamageToDeal(float newDmg);
+  virtual void ServerSetDamageToDeal_Implementation(float newDmg);
+  virtual bool ServerSetDamageToDeal_Validate(float newDmg);
+
   // Destroys spell after reaching a certain range or if it collides
   virtual void DestroySpell();
 
   // Simulate spell explosion
   virtual void SimulateExplosion();
+
+  /* UE4 does not support multiple inheritance, 
+  thus we are creating the AOETick under the spellSystem
+  to be called under AOEFire/AOEIce-Tick, etc. Using an interface
+  would not have solved the problem of having to implement
+  the same AOETick function for every damage type.*/
+  void AOETick(float DeltaSeconds);
+
+  // The spellDps, to be applied by deltaSeconds(Used with AOETick)
+  float damagePerSecond;
 
 private:
 
@@ -166,6 +206,8 @@ private:
   // Spell cooldown helper
   float CDHelper;
   
+  void ProcessSpellTimers();
+
   // Server side RPC for cast spell
   UFUNCTION(Reliable, Server, WithValidation)
   void ServerSpawnSpell(TSubclassOf<ASpellSystem> tempSpell);

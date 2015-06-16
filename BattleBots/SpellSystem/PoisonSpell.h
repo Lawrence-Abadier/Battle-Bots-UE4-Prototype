@@ -6,9 +6,12 @@
 #include "SpellSystem/SpellSystem.h"
 #include "PoisonSpell.generated.h"
 
-DECLARE_DELEGATE(FTimerDelegate)
 /**
- * 
+  * APoisonSpell is the base class for a spell to be spawned in the level.
+  * APoisonSpell objects are projectiles that spawn at spell caster location.
+  * The projectiles get destroyed on contact. Enemies hit by the spell
+  * receive a poison dot for X durations. The duration of the dot gets reset
+  * to full duration if the enemy is hit before the duration ends.
  */
 UCLASS()
 class BATTLEBOTS_API APoisonSpell : public ASpellSystem

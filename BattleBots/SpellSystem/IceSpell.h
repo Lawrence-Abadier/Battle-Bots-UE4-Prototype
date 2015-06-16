@@ -6,10 +6,13 @@
 #include "SpellSystem/SpellSystem.h"
 #include "IceSpell.generated.h"
 
-DECLARE_DELEGATE(FTimerDelegate)
 
 /**
- * 
+ * AIceSpell is the base class for a spell to be spawned in the level.
+ * AIceSpell objects are projectiles that spawn at spell caster location.
+ * The projectiles get destroyed on contact. Enemies hit by the spell
+ * receive a slow for X durations. The duration of the slow gets reset
+ * to full duration if the enemy is hit before the duration ends.
  */
 UCLASS()
 class BATTLEBOTS_API AIceSpell : public ASpellSystem
