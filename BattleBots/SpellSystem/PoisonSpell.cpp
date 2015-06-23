@@ -72,7 +72,7 @@ void APoisonSpell::PoisonEnemy(ABBotCharacter* enemyPlayer)
 	  {
 	    GetWorldTimerManager().ClearTimer(poisonDotHandler);
 	  }
-	  else
+    else if (enemyPlayer)
 	  {
 	    UGameplayStatics::ApplyDamage(enemyPlayer, poisonDotDamage, GetInstigatorController(), this, GetDamageType());
 	  }
