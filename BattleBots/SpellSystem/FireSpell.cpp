@@ -58,7 +58,7 @@ void AFireSpell::IgniteEnemy(ABBotCharacter* enemyPlayer)
 	  {
 	    GetWorldTimerManager().ClearTimer(igniteHandler);
 	  }
-	  else
+    else if (enemyPlayer)
 	  {
 	    UGameplayStatics::ApplyDamage(enemyPlayer, igniteDamage, GetInstigatorController(), this, GetDamageType());
 	  }

@@ -1,6 +1,7 @@
 // Copyright 2015 VMR Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "BattleBotsGameMode.h"
 #include "Character/BBotCharacter.h"
 #include "SpellSystem.h"
 
@@ -56,7 +57,7 @@ void ASpellSystem::PostInitializeComponents()
 
     // Sets the spell dps (Used for AOETicks)
     damagePerSecond = GetDamageToDeal() / spellDataInfo.spellDuration;
-    GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(damagePerSecond*100));
+    GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(damagePerSecond * 100));
   }
 }
 
@@ -87,7 +88,7 @@ void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrim
   ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
   UStaticMeshComponent* staticWall = Cast<UStaticMeshComponent>(SweepResult.GetComponent());
 
-  if (enemyPlayer && enemyPlayer != GetSpellCaster()) {
+  if (IsEnemy(enemyPlayer)) {
     if (!OverlappedActors.Contains(enemyPlayer))
     {
       DealDamage(enemyPlayer);
@@ -107,6 +108,31 @@ void ASpellSystem::OnCollisionOverlapEnd(class AActor* OtherActor, class UPrimit
   }
 }
 
+bool ASpellSystem::IsEnemy(ABBotCharacter* possibleEnemy)
+{
+  if (Role < ROLE_Authority)
+  {
+    ServerIsEnemy(possibleEnemy);
+  }
+  else
+  {
+    return (possibleEnemy
+         && possibleEnemy != GetSpellCaster()
+         && possibleEnemy->CanRecieveDamage(Instigator->Controller, GetDamageType()));
+  }
+  return false;
+}
+
+void ASpellSystem::ServerIsEnemy_Implementation(ABBotCharacter* possibleEnemy)
+{
+  IsEnemy(possibleEnemy);
+}
+
+bool ASpellSystem::ServerIsEnemy_Validate(ABBotCharacter* possibleEnemy)
+{
+  return true;
+}
+
 // Deal basic projectile functionality and damage
 void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
 {
@@ -114,17 +140,17 @@ void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
   {
     // Deal damage only on the server
     ServerDealDamage(enemyPlayer);
-  } 
+  }
   else
   {
-	  if (spellDataInfo.bKnockBack)
-	  {
-	    enemyPlayer->KnockbackPlayer(GetActorLocation());
-	  }
-	
-	  UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
-	  DealUniqueSpellFunctionality(enemyPlayer);
-	  DestroySpell();
+    if (spellDataInfo.bKnockBack)
+    {
+      enemyPlayer->KnockbackPlayer(GetActorLocation());
+    }
+
+    UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+    DealUniqueSpellFunctionality(enemyPlayer);
+    DestroySpell();
   }
 }
 
@@ -248,10 +274,10 @@ void ASpellSystem::DestroySpell()
 {
   if (HasAuthority())
   {
-	  if (!spellDataInfo.bIsPiercing) {
-	    // If the spell is not piercing then destroy spell at contact
-	    SimulateExplosion();
-	  }
+    if (!spellDataInfo.bIsPiercing) {
+      // If the spell is not piercing then destroy spell at contact
+      SimulateExplosion();
+    }
   }
 }
 
@@ -313,7 +339,7 @@ void ASpellSystem::AOETick(float DeltaSeconds)
       ABBotCharacter* enemy = Cast<ABBotCharacter>(enemyActors[i]);
 
       // Only apply damage if the actors capsule component is overlapping
-      if (enemy && collisionComp->IsOverlappingComponent(enemy->GetCapsuleComponent()))
+      if (IsEnemy(enemy) && collisionComp->IsOverlappingComponent(enemy->GetCapsuleComponent()))
       {
         SetDamageToDeal(ProcessElementalDmg(damagePerSecond * DeltaSeconds));
         /* Because we are checking collision and dealing damage in tick,
@@ -325,6 +351,8 @@ void ASpellSystem::AOETick(float DeltaSeconds)
     }
   }
 }
+
+
 
 
 

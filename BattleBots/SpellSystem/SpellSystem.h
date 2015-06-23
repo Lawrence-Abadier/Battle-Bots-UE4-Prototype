@@ -220,4 +220,13 @@ private:
   void ServerSpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
   virtual void ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell);
   virtual bool ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell);
+
+  // Short-circuits if the overlapped pawn is an enemy, to prevent unnecessary computations
+  bool IsEnemy(ABBotCharacter* possibleEnemy);
+
+  // IsEnemy only runs on server authority
+  UFUNCTION(Reliable, Server, WithValidation)
+    void ServerIsEnemy(ABBotCharacter* possibleEnemy);
+  virtual void ServerIsEnemy_Implementation(ABBotCharacter* possibleEnemy);
+  virtual bool ServerIsEnemy_Validate(ABBotCharacter* possibleEnemy);
 };
