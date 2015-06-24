@@ -75,7 +75,11 @@ public:
   /* Player Input and Collision                                           */
   /************************************************************************/
 public:
-  FORCEINLINE ABattleBotsPlayerController* GetBBOTController() const { return playerController; }
+  FORCEINLINE ABattleBotsPlayerController* GetBBOTController() 
+  { 
+    playerController = (Controller != NULL) ? Cast<ABattleBotsPlayerController>(Controller) : Cast<ABattleBotsPlayerController>(GetOwner());
+    return playerController; 
+  }
   FORCEINLINE ABattleBotsPlayerController* GetPC()
   {
     TObjectIterator<ABattleBotsPlayerController> Itr; //Not looping, just want the first entry
@@ -115,9 +119,24 @@ private:
   virtual void ServerChangeFacingRotation_Implementation(FRotator newRotation);
   virtual bool ServerChangeFacingRotation_Validate(FRotator newRotation);
   /************************************************************************/
+  /* Animations and Sound                                                 */
+  /************************************************************************/
+protected:
+  /** animation played on death */
+  UPROPERTY(EditDefaultsOnly, Category = "Animation")
+  UAnimMontage* deathAnim;
+
+  /** sound played on death, local player only */
+  UPROPERTY(EditDefaultsOnly, Category = "Pawn")
+  USoundCue* deathSound;
+
+  /************************************************************************/
   /* Character Attributes, Health, and Resource                           */
   /************************************************************************/
 public:
+  /** Identifies if pawn is in its dying state */
+  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+  uint32 bIsDying : 1;
 
   UFUNCTION(BlueprintCallable, Category = "PlayerCondition")
   float GetCurrentHealth() const;
@@ -177,16 +196,18 @@ protected:
   FCharacterAttributes spellBuffDebuffConfig;
 
   // The character's health, variables within UStructs cannot be replicated
-  UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
+  UPROPERTY(EditDefaultsOnly, Transient, Category = "Health", Replicated)
   float health;
   // The character's main resource, used to cast spells
   UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes", Replicated)
   float oil;
 
   // The maximum value for health
+  UPROPERTY(Replicated)
   float maxHealth;
 
   // The maximum value for oil
+  UPROPERTY(Replicated)
   float maxOil;
 
   UFUNCTION(Reliable, Server, WithValidation)
@@ -215,29 +236,32 @@ public:
   // Take damage and handle death
   virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
   
-  // Checks if the player took damage to prevent multiple takedamage calls
-  bool TookDamage() const;
-  void SetTookDamage(bool bDamaged);
+  // Checks to see if the character can recieve damage (Teamates, immunity, etc)
+  virtual bool CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType);
+
 protected:
   // Must be overridden to handle block rating on appropriate classes
   virtual float ProcessDamageTypes(float Damage, struct FDamageEvent const& DamageEvent);
 
   // Process current negative/positive resistance on incoming damage type. 
   float ProcessFinalDmgPostResist(float initialDmg, float currentResist);
-
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetTookDamage(bool bDamaged);
-  virtual void ServerSetTookDamage_Implementation(bool bDamaged);
-  virtual bool ServerSetTookDamage_Validate(bool bDamaged);
 private:
 
-  // True if the player took damage
-  UPROPERTY(Replicated)
-  bool bTookDamage;
+  // Checks to see if the player can die (RoleAuthority, isPendingKill, LeavingMatch, etc)
+  virtual bool CanDie(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser);
 
   // Play animation, sound, and destroy pawn
-  virtual void Die();
+  virtual bool Die(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser);
 
+  // Called if the player can die
+  UFUNCTION(Reliable, NetMulticast)
+  virtual void OnDeath(float killingDamage, FDamageEvent const& DamageEvent, APawn* pawnInstigator, AActor* damageCauser);
+  virtual void OnDeath_Implementation(float killingDamage, FDamageEvent const& DamageEvent, APawn* pawnInstigator, AActor* damageCauser);
+
+  // Sets ragdoll physics to our dead pawn
+  UFUNCTION(Reliable, NetMulticast)
+  void SetRagdollPhysics();
+  void SetRagdollPhysics_Implementation();
   /************************************************************************/
   /* SpellBar and Resource Management                                     */
   /************************************************************************/
@@ -391,4 +415,12 @@ private:
     void ServerSwitchCombatStanceHelper(bool bScrolled);
   virtual void ServerSwitchCombatStanceHelper_Implementation(bool bScrolled);
   virtual bool ServerSwitchCombatStanceHelper_Validate(bool bScrolled);
+
+  /************************************************************************/
+  /* Debug & Console                                                      */
+  /************************************************************************/
+public:
+  // Debug function to test team functionality
+  UFUNCTION(exec)
+  void SwitchTeams();
 };

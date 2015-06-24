@@ -2,6 +2,8 @@
 
 #include "BattleBots.h"
 #include "BBotCharacter.h"
+#include "Online/BBotsPlayerState.h"
+#include "BattleBotsGameMode.h"
 #include "SpellSystem/SpellSystem.h"
 #include "SpellSystem/DamageTypes/BBotDmgType_Holy.h"
 #include "SpellSystem/DamageTypes/BBotDmgType_Fire.h"
@@ -38,9 +40,6 @@ ABBotCharacter::ABBotCharacter(const FObjectInitializer& ObjectInitializer)
 
   // The combat stance index
   stanceIndex = 0;
-
-  // Prevents multiple calls to takedamage by the same spell
-  bTookDamage = false;
 }
 
 // Called after all components have been initialized with default values
@@ -55,6 +54,9 @@ void ABBotCharacter::PostInitializeComponents()
     maxOil = oil;
     GetCharacterMovement()->MaxWalkSpeed = characterConfig.movementSpeed;
 
+    // Set the player controller that is possessing this pawn
+    playerController = (Controller != NULL) ? Cast<ABattleBotsPlayerController>(Controller) : Cast<ABattleBotsPlayerController>(GetOwner());
+
     //Init the 3 stances dependant on archetype - mage, warrior, etc
     InitCombatStances();
   }
@@ -67,8 +69,6 @@ void ABBotCharacter::BeginPlay()
 
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Spawning arch char"));
 
-  playerController = GetPC();
-
   // Is called to ensure that the default stance is triggered on spawn
   OnRep_StanceChanged();
 }
@@ -78,7 +78,7 @@ void ABBotCharacter::Tick(float DeltaTime)
 {
   Super::Tick(DeltaTime);
 
-  if (GetCharacterMovement()->Velocity.SizeSquared() > 5  && !bCanCastWhileMoving)
+  if (GetCharacterMovement()->Velocity.SizeSquared() > 5 && !bCanCastWhileMoving)
   {
     // Stop casting the spell while the character is moving
     GetWorldTimerManager().ClearTimer(castingSpellHandler);
@@ -148,11 +148,32 @@ bool ABBotCharacter::IsAlive() const
   return health > 0.f;
 }
 
+
+bool ABBotCharacter::CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType)
+{
+  //   if (GetBBOTController())
+  //   {
+  // 	  ABBotsPlayerState* damagedPlayerState = Cast<ABBotsPlayerState>(PlayerState);
+  // 	  ABBotsPlayerState* instigatorPlayerState = Cast<ABBotsPlayerState>(damageInstigator->PlayerState);
+  // 	  return GetWorld()->GetAuthGameMode<ABattleBotsGameMode>()->CanDealDamage(instigatorPlayerState, damagedPlayerState);
+  //   }
+  //   return false;
+  if (HasAuthority())
+  {
+    ABattleBotsGameMode* GM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
+    return GM->CanDealDamageTest(damageInstigator, GetBBOTController());
+  }
+  return false;
+}
+
 // Take damage and handle death
 float ABBotCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-  // Prevents multiple TakeDamage calls by the same spell
-  bTookDamage = true;
+  // Check to see if the damage was caused from a teammate
+  if (!CanRecieveDamage(EventInstigator, DamageEvent.DamageTypeClass))
+  {
+    return 0.f;
+  }
 
   if (health <= 0.f) {
     return 0.f;
@@ -168,7 +189,7 @@ float ABBotCharacter::TakeDamage(float Damage, struct FDamageEvent const& Damage
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("I took damage") + FString::FromInt(DamageToApply) + TEXT(" MY HEALTH: ") + FString::FromInt(GetCurrentHealth()));
 
     if (health <= 0) {
-      Die();
+      Die(DamageToApply, DamageEvent, EventInstigator, DamageCauser);
     }
     else {
       // @todo: play hit animation
@@ -209,11 +230,6 @@ float ABBotCharacter::ProcessFinalDmgPostResist(float initialDmg, float currentR
   // If the resist is negative, then apply additional damage
   float resistModifier = 1 - FMath::Clamp(currentResist, -1.f, 1.f);
   return FMath::Abs(initialDmg * resistModifier);
-}
-
-bool ABBotCharacter::TookDamage() const
-{
-  return bTookDamage;
 }
 
 // Set the spell damage by x%
@@ -291,35 +307,128 @@ bool ABBotCharacter::ServerSetResistAll_Validate(float newResistanceMod)
   return true;
 }
 
-void ABBotCharacter::SetTookDamage(bool bDamaged)
+bool ABBotCharacter::CanDie(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser)
 {
-  // Set the value locally
-  bTookDamage = bDamaged;
-
-  if (Role < ROLE_Authority) {
-    ServerSetTookDamage(bDamaged);
+  if (bIsDying										// already dying
+    || IsPendingKill()								// already destroyed
+    || Role != ROLE_Authority						// not authority
+    || GetWorld()->GetAuthGameMode() == NULL
+    || GetWorld()->GetAuthGameMode()->GetMatchState() == MatchState::LeavingMap)	// level transition occurring
+  {
+    return false;
   }
-}
 
-void ABBotCharacter::ServerSetTookDamage_Implementation(bool bDamaged)
-{
-  SetTookDamage(bDamaged);
-}
-
-bool ABBotCharacter::ServerSetTookDamage_Validate(bool bDamaged)
-{
   return true;
 }
 
-void ABBotCharacter::Die()
+bool ABBotCharacter::Die(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser)
 {
-  // @todo: implement death
-  this->SetLifeSpan(0.1);
+  if (!CanDie(killingDamage, DamageEvent, killer, damageCauser))
+  {
+    return false;
+  }
+
+  AController* const KilledPlayer = (Controller != NULL) ? Controller : Cast<AController>(GetOwner());
+  GetWorld()->GetAuthGameMode<ABattleBotsGameMode>()->Killed(killer, KilledPlayer, this, DamageEvent.DamageTypeClass);
+
+  OnDeath(killingDamage, DamageEvent, killer ? killer->GetPawn() : NULL, damageCauser);
+
+  return true;
+}
+
+void ABBotCharacter::OnDeath_Implementation(float killingDamage, FDamageEvent const& DamageEvent, APawn* pawnInstigator, AActor* damageCauser)
+{
+  if (bIsDying)
+  {
+    return;
+  }
+
+  bReplicateMovement = false;
+  bTearOff = true;
+  bIsDying = true;
+
+  //@TODO: Fix role authority, maybe adjust collision under authority, and ragdoll on multicast
+//   if (Role == ROLE_Authority)
+//   {
+    // Play death sound
+    UGameplayStatics::PlaySoundAtLocation(this, deathSound, GetActorLocation());
+
+    DetachFromControllerPendingDestroy();
+
+    // disable collisions on capsule
+    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+    GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+
+    if (GetMesh())
+    {
+      static FName CollisionProfileName(TEXT("Ragdoll"));
+      GetMesh()->SetCollisionProfileName(CollisionProfileName);
+    }
+    SetActorEnableCollision(true);
+
+    // Returns the death anim's duration
+    float deathAnimDuration = PlayAnimMontage(deathAnim);
+
+    // Ragdoll after the death animation has played
+    if (deathAnimDuration > 0.f)
+    {
+      // Use a local timer handle as we don't need to store it for later and we don't need to look for something to clear
+      FTimerHandle ragdollTimerHandle;
+      GetWorldTimerManager().SetTimer(ragdollTimerHandle, this, &ABBotCharacter::SetRagdollPhysics, FMath::Min(0.1f, deathAnimDuration), false);
+    }
+    else
+    {
+      SetRagdollPhysics();
+    }
+  //}
+}
+
+void ABBotCharacter::SetRagdollPhysics_Implementation()
+{
+  bool bInRagdoll = false;
+
+  if (IsPendingKill())
+  {
+    bInRagdoll = false;
+  }
+  else if (!GetMesh() || !GetMesh()->GetPhysicsAsset())
+  {
+    bInRagdoll = false;
+  }
+  else
+  {
+    // initialize physics/etc
+    GetMesh()->SetAllBodiesSimulatePhysics(true);
+    GetMesh()->SetSimulatePhysics(true);
+    GetMesh()->WakeAllRigidBodies();
+    GetMesh()->bBlendPhysics = true;
+
+    bInRagdoll = true;
+  }
+
+  GetCharacterMovement()->StopMovementImmediately();
+  GetCharacterMovement()->DisableMovement();
+  GetCharacterMovement()->SetComponentTickEnabled(false);
+
+  if (!bInRagdoll)
+  {
+    // hide and set short lifespan
+    TurnOff();
+    SetActorHiddenInGame(true);
+    SetLifeSpan(1.0f);
+  }
+  else
+  {
+    SetLifeSpan(10.0f);
+  }
 }
 
 // Function called on right mouse click
 void ABBotCharacter::CastOnRightClick()
 {
+  //@todo: currently handled under PC, but might be 
+  //best to move it back here to disable specific input for stun.
+
   // Rotate to the direction of our mouse click
   RotateToMouseCursor();
   // Cast spell from our dedicated spell bar index
@@ -328,8 +437,19 @@ void ABBotCharacter::CastOnRightClick()
 
 bool ABBotCharacter::CanCast(int32 spellIndex)
 {
-  spellCost = spellBar[spellIndex]->GetSpellCost();
-  return 0 <= (GetCurrentOil() - spellCost);
+  // If the character is currently dying prevent casting.
+  if (bIsDying)
+  {
+    return false;
+  }
+
+  if (spellBar.IsValidIndex(spellIndex) && spellBar[spellIndex]->IsValidLowLevel())
+  {
+    spellCost = spellBar[spellIndex]->GetSpellCost();
+    return 0 <= (GetCurrentOil() - spellCost);
+  }
+
+  return false;
 }
 
 // Casts the spell at index
@@ -339,7 +459,7 @@ void ABBotCharacter::CastFromSpellBar(int32 index, const FVector& HitLocation)
     if (CanCast(index))
     {
       // We short-circuit if we can cast to prevent unnecessary calls
-    	ServerCastFromSpellBar(index, HitLocation);
+      ServerCastFromSpellBar(index, HitLocation);
     }
   }
   else {
@@ -352,16 +472,16 @@ void ABBotCharacter::CastFromSpellBar(int32 index, const FVector& HitLocation)
           float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.01f : spellBar[index]->GetCastTime();
 
           bCanCastWhileMoving = spellBar[index]->CastableWhileMoving();
-          
+
           // Set the spellSpawnLocation to prevent re-binding our FTimerDelegate
           spellBar[index]->SetSpellSpawnLocation(HitLocation);
 
           // Attach a spellBar index payLoad to the delegate
           castingSpellDelegate.BindUObject(this, &ABBotCharacter::CastFromSpellBar_Internal, (int32)index);
-          
+
           // Cast the spell after cast time in seconds
           GetWorldTimerManager().SetTimer(castingSpellHandler, castingSpellDelegate, castTime, false);
-          
+
           SetCurrentOil(-spellCost);
           GCDHelper = currentTime + characterConfig.globalCooldown;
         }
@@ -410,7 +530,7 @@ void ABBotCharacter::AddSpellToBar(TSubclassOf<ASpellSystem> newSpell)
 
       ASpellSystem* spellManager = GetWorld()->SpawnActor<ASpellSystem>(newSpell, spawnInfo);
 
-      
+
       if (spellManager)
       {
         /* Set the spellManagers' collision and hidden in game to true.
@@ -654,9 +774,10 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
   DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, bTookDamage, COND_SkipOwner);
 
   // Value is only relevant to owner
+  DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, maxOil, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
@@ -677,4 +798,23 @@ void ABBotCharacter::KnockbackPlayer(FVector spellPosition)
   FVector launchForce = (FVector)(kbDirection.Normalize() * 300); // Kb ammount
   LaunchCharacter(launchForce, false, true);
 }
+
+void ABBotCharacter::SwitchTeams()
+{
+  ABBotsPlayerState* myState = Cast<ABBotsPlayerState>(PlayerState);
+
+  if (myState)
+  {
+    if (myState->GetTeamNum() == 0)
+    {
+      myState->SetTeamNum(1);
+    }
+    else{
+      myState->SetTeamNum(0);
+    }
+  }
+}
+
+
+
 
