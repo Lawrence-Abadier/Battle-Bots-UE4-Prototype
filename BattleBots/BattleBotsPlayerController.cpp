@@ -24,6 +24,15 @@ void ABattleBotsPlayerController::BeginPlay()
 {
   Super::BeginPlay();
 
+  if (HasAuthority())
+  {
+    currGM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
+    if (currGM)
+    {
+      bCanRespawn = currGM->CanRespawnImmediately();
+    }
+  }
+
 }
 
 void ABattleBotsPlayerController::PlayerTick(float DeltaTime)
@@ -199,7 +208,7 @@ FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, co
 FVector ABattleBotsPlayerController::GetLineOfSightImpactPoint()
 {
   return SingleLineTrace(playerCharacter->GetActorLocation(),
-                         GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
+    GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
 }
 
 void ABattleBotsPlayerController::RotateToMouseCursor()
@@ -254,6 +263,37 @@ void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimePro
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
   DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, localRotation, COND_OwnerOnly);
+}
+
+void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
+{
+  Super::PawnPendingDestroy(deadPawn);
+  //@todo: check gamestate if round has ended
+  if (bCanRespawn)
+  {
+    //@todo: respawn player
+    currGM->RestartPlayer(this);
+  }
+  else
+  {
+    StartSpectating();
+  }
+}
+
+void ABattleBotsPlayerController::StartSpectating()
+{
+  // Update state on the server
+  PlayerState->bIsSpectator = true;
+  // Waiting to respawn
+  bPlayerIsWaiting = true;
+  ChangeState(NAME_Spectating);
+  // Update state for the client
+  ClientGotoState(NAME_Spectating);
+
+  // Focus camera on the remaining player
+  ViewAPlayer(1);
+
+  //@todo: update hud to set spectating
 }
 
 

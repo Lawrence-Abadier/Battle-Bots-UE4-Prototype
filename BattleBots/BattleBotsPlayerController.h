@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AIController.h"
+#include "BattleBotsGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "BattleBotsPlayerController.generated.h"
 
@@ -14,6 +15,9 @@ class ABattleBotsPlayerController : public APlayerController
 	GENERATED_BODY()
 
 public:
+  /************************************************************************/
+  /* Input and Controls                                                   */
+  /************************************************************************/
 	ABattleBotsPlayerController(const FObjectInitializer& ObjectInitializer);
 
 protected:
@@ -96,4 +100,22 @@ private:
 
   // Returns an impact point of the characters line of sight
   FVector GetLineOfSightImpactPoint();
+
+  /************************************************************************/
+  /* Respawning and Spectating                                            */
+  /************************************************************************/
+public:
+  // Starts spectating on dead players
+  void StartSpectating();
+
+protected:
+  /** update camera when pawn dies and enable spectating if applicable.*/
+  virtual void PawnPendingDestroy(APawn* deadPawn) override;
+
+private:
+  // The current GM in play
+  ABattleBotsGameMode* currGM;
+
+  // Whether to respawn or spectate on death
+  bool bCanRespawn;
 };
