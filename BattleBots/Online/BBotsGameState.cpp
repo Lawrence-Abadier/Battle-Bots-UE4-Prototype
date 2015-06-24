@@ -6,3 +6,21 @@
 
 
 
+
+ABBotsGameState::ABBotsGameState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
+{
+  numTeams = 0;
+  remainingTime = 0;
+  bTimerPaused = false;
+}
+
+void ABBotsGameState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
+{
+  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+  DOREPLIFETIME(ABBotsGameState, numTeams);
+  DOREPLIFETIME(ABBotsGameState, remainingTime);
+  DOREPLIFETIME(ABBotsGameState, bTimerPaused);
+  DOREPLIFETIME(ABBotsGameState, teamScores);
+}
+
