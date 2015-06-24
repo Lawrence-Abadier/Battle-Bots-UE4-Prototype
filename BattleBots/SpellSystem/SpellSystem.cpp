@@ -86,7 +86,6 @@ void ASpellSystem::Tick(float DeltaTime)
 void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
   ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
-  UStaticMeshComponent* staticWall = Cast<UStaticMeshComponent>(SweepResult.GetComponent());
 
   if (IsEnemy(enemyPlayer)) {
     if (!OverlappedActors.Contains(enemyPlayer))
@@ -222,9 +221,9 @@ void ASpellSystem::SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell)
 
       // Spawn the spell into the world
       spellSpawner = GetWorld()->SpawnActor<ASpellSystem>(tempSpell,
-        GetSpellSpawnLocation(),
-        GetSpellCaster()->GetActorRotation(),
-        spawnInfo);
+                                                          GetSpellSpawnLocation(),
+                                                          GetSpellCaster()->GetActorRotation(),
+                                                          spawnInfo);
 
       // Process spell destruction timers
       ProcessSpellTimers();
