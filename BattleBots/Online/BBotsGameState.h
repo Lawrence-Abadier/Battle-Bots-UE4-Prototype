@@ -35,4 +35,8 @@ public:
   /** is timer paused? */
   UPROPERTY(Transient, Replicated)
   bool bTimerPaused;
+
+  /** is timer paused? */
+  UPROPERTY(Transient, Replicated)
+  bool bRoundOver;
 };

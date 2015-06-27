@@ -1,6 +1,8 @@
 // Copyright 2015 VMR Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "Online/BBotsGameInstance.h"
+#include "Online/BBotsGameState.h"
 #include "BattleBotsGameMode.h"
 #include "Online/BBotsSpectatorPawn.h"
 #include "BattleBotsPlayerController.h"
@@ -21,20 +23,159 @@ ABattleBotsGameMode::ABattleBotsGameMode(const FObjectInitializer& ObjectInitial
   PlayerControllerClass = ABattleBotsPlayerController::StaticClass();
   PlayerStateClass = ABBotsPlayerState::StaticClass();
   SpectatorClass = ABBotsSpectatorPawn::StaticClass();
-  //GameStateClass = ABBotsGameState::StaticClass();
+  GameStateClass = ABBotsGameState::StaticClass();
 
   MinRespawnDelay = 5.0f;
 
-  bUseSeamlessTravel = true;
+  //bUseSeamlessTravel = true;
+  bWarmUpTimerOver = false;
 
+  // Default is 1 round
+  maxNumOfRounds = 1;
   roundTime = 10;
   timeBetweenMatches = 1;
   killScore = 0;
   deathScore = 0;
-  damageSelfScale = 1;
   bAllowFriendlyFireDamage = false;
 }
 
+void ABattleBotsGameMode::PreInitializeComponents()
+{
+  Super::PreInitializeComponents();
+
+  /* Set timer to run every second */
+  GetWorldTimerManager().SetTimer(defaultTimerHandler, this, &ABattleBotsGameMode::DefaultTimer, 1.f/*GetWorldSettings()->GetEffectiveTimeDilation()*/, true);
+  //GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::WarmUpTimeEnd, warmupTime, false);
+}
+
+void ABattleBotsGameMode::DefaultTimer()
+{
+  // don't update timers for Play In Editor mode, it's not real match
+  if (GetWorld()->IsPlayInEditor())
+  {
+    // start match if necessary.
+    if (GetMatchState() == MatchState::WaitingToStart)
+    {
+      StartMatch();
+    }
+    return;
+  }
+  UBBotsGameInstance* const GameInstance = Cast<UBBotsGameInstance>(GetGameInstance());
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+
+  if (MyGameState && GameInstance 
+    && GameInstance->GetRoundsThisMatch() < maxNumOfRounds
+    && MyGameState->remainingTime > 0
+    && !MyGameState->bTimerPaused)
+  {
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(GameInstance->GetRoundsThisMatch()));
+    MyGameState->remainingTime--;
+
+    if (MyGameState->remainingTime <= 0)
+    {
+      if (GetMatchState() == MatchState::WaitingPostMatch)
+      {
+        GameInstance->IncRoundsThisMatch();
+        RestartGame();
+      }
+      else if (GetMatchState() == MatchState::InProgress)
+      {
+        FinishMatch();
+
+        // Send end round events
+        for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+        {
+          ABattleBotsPlayerController* PlayerController = Cast<ABattleBotsPlayerController>(*It);
+
+          if (PlayerController && MyGameState)
+          {
+            ABBotsPlayerState* PlayerState = Cast<ABBotsPlayerState>((*It)->PlayerState);
+            const bool bIsWinner = IsWinner(PlayerState);
+
+            //PlayerController->ClientSendRoundEndEvent(bIsWinner, MyGameState->ElapsedTime);
+          }
+        }
+      }
+      else if (GetMatchState() == MatchState::WaitingToStart)
+      {
+        GameInstance->IncRoundsThisMatch();
+        StartMatch();
+      }
+    }
+  }
+}
+
+void ABattleBotsGameMode::HandleMatchIsWaitingToStart()
+{
+  if (bDelayedStart)
+  {
+    // start warmup if needed
+    ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+    if (MyGameState && MyGameState->remainingTime == 0)
+    {
+      const bool bWantsMatchWarmup = !GetWorld()->IsPlayInEditor();
+      if (bWantsMatchWarmup && warmupTime > 0)
+      {
+        MyGameState->remainingTime = warmupTime;
+      }
+      else
+      {
+        MyGameState->remainingTime = 0.0f;
+      }
+    }
+  }
+}
+
+void ABattleBotsGameMode::HandleMatchHasStarted()
+{
+  Super::HandleMatchHasStarted();
+
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+  if (MyGameState)
+  {
+    MyGameState->remainingTime = roundTime;
+  }
+
+  // notify players
+  //   for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+  //   {
+  //     ABattleBotsPlayerController* PC = Cast<ABattleBotsPlayerController>(*It);
+  //     if (PC)
+  //     {
+  //       //PC->ClientGameStarted();
+  //     }
+  //   }
+}
+
+void ABattleBotsGameMode::FinishMatch()
+{
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+  if (IsMatchInProgress())
+  {
+    EndMatch();
+    DetermineMatchWinner();
+
+    // notify players
+    //     for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+    //     {
+    //       ABBotsPlayerState* PlayerState = Cast<ABBotsPlayerState>((*It)->PlayerState);
+    //       const bool bIsWinner = IsWinner(PlayerState);
+    // 
+    //       (*It)->GameHasEnded(NULL, bIsWinner);
+    //     }
+
+    // lock all pawns
+    // pawns are not marked as keep for seamless travel, so we will create new pawns on the next match rather than
+    // turning these back on.
+    for (FConstPawnIterator It = GetWorld()->GetPawnIterator(); It; ++It)
+    {
+      (*It)->TurnOff();
+    }
+
+    // set up to restart the match
+    MyGameState->remainingTime = timeBetweenMatches;
+  }
+}
 
 void ABattleBotsGameMode::DetermineMatchWinner()
 {
@@ -56,7 +197,7 @@ void ABattleBotsGameMode::Killed(AController* killer, AController* killedPlayer,
     killerPlayerState->ScoreKill(victimPlayerState, killScore);
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Cyan, TEXT("Kills: ") + FString::FromInt(killerPlayerState->GetKills()));
   }
-  
+
   if (victimPlayerState)
   {
     victimPlayerState->ScoreDeath(killerPlayerState, deathScore);
@@ -73,10 +214,10 @@ bool ABattleBotsGameMode::CanDealDamage(class ABBotsPlayerState* damageInstigato
   return damageInstigator && damagedPlayer && (damageInstigator->GetTeamNum() != damagedPlayer->GetTeamNum());
 }
 
-bool ABattleBotsGameMode::ShouldSpawnAtStartSpot(AController* Player)
-{
-  return false;
-}
+// bool ABattleBotsGameMode::ShouldSpawnAtStartSpot(AController* Player)
+// {
+//   return false;
+// }
 
 bool ABattleBotsGameMode::CanDealDamageTest(AController* damageInstigator, AController* damagedPlayer) const
 {
@@ -95,44 +236,6 @@ bool ABattleBotsGameMode::CanRespawnImmediately()
   return bRespawnImmediately;
 }
 
-void ABattleBotsGameMode::HandleMatchIsWaitingToStart()
-{
-//   if (bDelayedStart)
-//   {
-//     // start warmup if needed
-//     AShooterGameState* const MyGameState = Cast<AShooterGameState>(GameState);
-//     if (MyGameState && MyGameState->RemainingTime == 0)
-//     {
-//       const bool bWantsMatchWarmup = !GetWorld()->IsPlayInEditor();
-//       if (bWantsMatchWarmup && WarmupTime > 0)
-//       {
-//         MyGameState->RemainingTime = WarmupTime;
-//       }
-//       else
-//       {
-//         MyGameState->RemainingTime = 0.0f;
-//       }
-//     }
-//   }
-}
-
-void ABattleBotsGameMode::HandleMatchHasStarted()
-{
-    Super::HandleMatchHasStarted();
-
-//     ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
-//     MyGameState->RemainingTime = RoundTime;
-// 
-//     // notify players
-//     for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
-//     {
-//       ABattleBotsPlayerController* PC = Cast<ABattleBotsPlayerController>(*It);
-//       if (PC)
-//       {
-//         PC->ClientGameStarted();
-//       }
-//     }
-}
 
 bool ABattleBotsGameMode::CanSpectate(APlayerController* Viewer, APlayerState* ViewTarget)
 {
@@ -140,3 +243,53 @@ bool ABattleBotsGameMode::CanSpectate(APlayerController* Viewer, APlayerState* V
   ABBotsPlayerState* const ViewTargetPS = Cast<ABBotsPlayerState>(ViewTarget);
   return (ViewerPS && ViewTargetPS && (ViewerPS->GetTeamNum() != ViewTargetPS->GetTeamNum()));
 }
+
+void ABattleBotsGameMode::WarmUpTimeEnd()
+{
+  bWarmUpTimerOver = true;
+  //if (GetMatchState() == MatchState::InProgress){
+  //   if (HasAuthority())
+  //   {
+  //     RestartGame();
+  //   }
+  //   for (FConstPawnIterator It = GetWorld()->GetPawnIterator(); It; ++It)
+  //   {
+  //     (*It)->TurnOff();
+  //     (*It)->SetActorHiddenInGame(true);
+  //     (*It)->Destroy();
+  //   }
+  // 
+  //   for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
+  //   {
+  //     APlayerController* PlayerController = *Iterator;
+  //     PlayerController->UnPossess();
+  //     //RestartPlayer(PlayerController);
+  //   }
+  //   SetMatchState(MatchState::WaitingToStart);
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+  if (!MyGameState->bRoundOver)
+  {
+    MyGameState->bRoundOver = true;
+    RestartGame();
+  }
+  GetWorldTimerManager().ClearTimer(warmupTimerHandler);
+}
+
+bool ABattleBotsGameMode::ReadyToStartMatch()
+{
+  if (GetMatchState() == MatchState::InProgress)
+  {
+    return bWarmUpTimerOver;
+  }
+  return Super::ReadyToStartMatch();
+}
+
+bool ABattleBotsGameMode::ReadyToEndMatch()
+{
+  //@todo: end match when game timer is up
+  return false;
+}
+
+
+
+

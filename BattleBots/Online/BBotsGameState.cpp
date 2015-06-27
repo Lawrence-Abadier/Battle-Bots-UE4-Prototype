@@ -12,6 +12,7 @@ ABBotsGameState::ABBotsGameState(const FObjectInitializer& ObjectInitializer) : 
   numTeams = 0;
   remainingTime = 0;
   bTimerPaused = false;
+  bRoundOver = false;
 }
 
 void ABBotsGameState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
@@ -22,5 +23,6 @@ void ABBotsGameState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
   DOREPLIFETIME(ABBotsGameState, remainingTime);
   DOREPLIFETIME(ABBotsGameState, bTimerPaused);
   DOREPLIFETIME(ABBotsGameState, teamScores);
+  DOREPLIFETIME(ABBotsGameState, bRoundOver);
 }
 
