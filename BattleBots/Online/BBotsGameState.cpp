@@ -23,6 +23,5 @@ void ABBotsGameState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & O
   DOREPLIFETIME(ABBotsGameState, remainingTime);
   DOREPLIFETIME(ABBotsGameState, bTimerPaused);
   DOREPLIFETIME(ABBotsGameState, teamScores);
-  DOREPLIFETIME(ABBotsGameState, bRoundOver);
 }
 
