@@ -292,7 +292,7 @@ void ABattleBotsPlayerController::StartSpectating()
 
   // Focus camera on the remaining player
   ViewAPlayer(1);
-
+  
   //@todo: update hud to set spectating
 }
 
