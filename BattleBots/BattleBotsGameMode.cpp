@@ -63,7 +63,7 @@ void ABattleBotsGameMode::DefaultTimer()
   UBBotsGameInstance* const GameInstance = Cast<UBBotsGameInstance>(GetGameInstance());
   ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
 
-  if (MyGameState && GameInstance 
+  if (MyGameState && GameInstance
     && GameInstance->GetRoundsThisMatch() < maxNumOfRounds
     && MyGameState->remainingTime > 0
     && !MyGameState->bTimerPaused)
@@ -136,15 +136,16 @@ void ABattleBotsGameMode::HandleMatchHasStarted()
     MyGameState->remainingTime = roundTime;
   }
 
-  // notify players
-  //   for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
-  //   {
-  //     ABattleBotsPlayerController* PC = Cast<ABattleBotsPlayerController>(*It);
-  //     if (PC)
-  //     {
-  //       //PC->ClientGameStarted();
-  //     }
-  //   }
+  // Notify players that the game has started
+  for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+  {
+    ABattleBotsPlayerController* PC = Cast<ABattleBotsPlayerController>(*It);
+    if (PC)
+    {
+      // Call Blueprintevent to init game started huds
+      //PC->ClientGameStarted();
+    }
+  }
 }
 
 void ABattleBotsGameMode::FinishMatch()
@@ -155,18 +156,19 @@ void ABattleBotsGameMode::FinishMatch()
     EndMatch();
     DetermineMatchWinner();
 
-    // notify players
-    //     for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
-    //     {
-    //       ABBotsPlayerState* PlayerState = Cast<ABBotsPlayerState>((*It)->PlayerState);
-    //       const bool bIsWinner = IsWinner(PlayerState);
-    // 
-    //       (*It)->GameHasEnded(NULL, bIsWinner);
-    //     }
+    // Notify players that the game has ended
+    for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
+    {
+      ABBotsPlayerState* PlayerState = Cast<ABBotsPlayerState>((*It)->PlayerState);
+      const bool bIsWinner = IsWinner(PlayerState);
 
-    // lock all pawns
-    // pawns are not marked as keep for seamless travel, so we will create new pawns on the next match rather than
-    // turning these back on.
+      // Call Blueprintevent to init game ended huds
+      //(*It)->GameHasEnded(NULL, bIsWinner);
+    }
+
+    /* Lock all pawns. Pawns are not marked as keep for seamless travel,
+    /* so we will create new pawns on the next match rather than
+    /* turning these back on. */
     for (FConstPawnIterator It = GetWorld()->GetPawnIterator(); It; ++It)
     {
       (*It)->TurnOff();
@@ -246,33 +248,7 @@ bool ABattleBotsGameMode::CanSpectate(APlayerController* Viewer, APlayerState* V
 
 void ABattleBotsGameMode::WarmUpTimeEnd()
 {
-  bWarmUpTimerOver = true;
-  //if (GetMatchState() == MatchState::InProgress){
-  //   if (HasAuthority())
-  //   {
-  //     RestartGame();
-  //   }
-  //   for (FConstPawnIterator It = GetWorld()->GetPawnIterator(); It; ++It)
-  //   {
-  //     (*It)->TurnOff();
-  //     (*It)->SetActorHiddenInGame(true);
-  //     (*It)->Destroy();
-  //   }
-  // 
-  //   for (FConstPlayerControllerIterator Iterator = GetWorld()->GetPlayerControllerIterator(); Iterator; ++Iterator)
-  //   {
-  //     APlayerController* PlayerController = *Iterator;
-  //     PlayerController->UnPossess();
-  //     //RestartPlayer(PlayerController);
-  //   }
-  //   SetMatchState(MatchState::WaitingToStart);
-  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
-  if (!MyGameState->bRoundOver)
-  {
-    MyGameState->bRoundOver = true;
-    RestartGame();
-  }
-  GetWorldTimerManager().ClearTimer(warmupTimerHandler);
+
 }
 
 bool ABattleBotsGameMode::ReadyToStartMatch()
