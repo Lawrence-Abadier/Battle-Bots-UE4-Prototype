@@ -1,6 +1,7 @@
 // Copyright 2015 VMR Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "Online/BBotsGameState.h"
 #include "BBotsGameMode_FreeForAll.h"
 
 
@@ -13,6 +14,6 @@ void ABBotsGameMode_FreeForAll::DetermineMatchWinner()
 
   if (MyGameState)
   {
-    winningPlayer = Cast<ABBotsPlayerState>(FMath::Max<APlayerState>(MyGameState->PlayerArray));
+    winningPlayer = Cast<ABBotsPlayerState>(FMath::Max<APlayerState*>(MyGameState->PlayerArray));
   }
 }

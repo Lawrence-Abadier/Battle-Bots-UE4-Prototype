@@ -15,8 +15,8 @@ class BATTLEBOTS_API ABBotsGameMode_FreeForAll : public ABattleBotsGameMode
 	
 public:
 
-  FORCEINLINE bool operator<(APlayerState &playerOne, APlayerState &playerTwo){
-    return playerOne.Score < playerTwo.Score;
+  friend FORCEINLINE bool operator<(const APlayerState &PlayerOne, const APlayerState &PlayerTwo){
+    return PlayerOne.Score < PlayerTwo.Score;
   }
 
 protected:

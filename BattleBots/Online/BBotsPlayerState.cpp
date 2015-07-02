@@ -2,6 +2,7 @@
 
 #include "BattleBots.h"
 #include "BBotsPlayerState.h"
+#include "BBotsGameState.h"
 
 
 ABBotsPlayerState::ABBotsPlayerState(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
@@ -82,7 +83,7 @@ void ABBotsPlayerState::ScoreDeath(ABBotsPlayerState* KilledBy, int32 Points)
 
 void ABBotsPlayerState::ScorePoints(int32 Points)
 {
-  ABBotsPlayerState* const MyGameState = Cast<ABBotsPlayerState>(GetWorld()->GameState);
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GetWorld()->GameState);
   if (MyGameState && teamNumber >= 0)
   {
     if (teamNumber >= MyGameState->teamScores.Num())

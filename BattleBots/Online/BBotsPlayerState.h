@@ -44,6 +44,8 @@ public:
   /** player died */
   void ScoreDeath(ABBotsPlayerState* KilledBy, int32 Points);
 
+  void ScorePoints(int32 Points);
+
   /** get current team */
   UFUNCTION(BlueprintCallable, Category = "PlayerState")
   int32 GetTeamNum() const;

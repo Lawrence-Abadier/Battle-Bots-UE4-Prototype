@@ -14,7 +14,7 @@ class BATTLEBOTS_API ABBotsGameMode_TeamDeathMatch : public ABattleBotsGameMode
 	GENERATED_BODY()
 
 public:
-  UFUNCTION(BlueprintCallable)
+  UFUNCTION(BlueprintCallable, category = "Teams")
   void SelectTeam(ABBotsPlayerState* player, int32 teamNum);
 	
 protected:
