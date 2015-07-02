@@ -12,8 +12,15 @@ UCLASS()
 class BATTLEBOTS_API ABBotsGameMode_TeamDeathMatch : public ABattleBotsGameMode
 {
 	GENERATED_BODY()
+
+public:
+  UFUNCTION(BlueprintCallable)
+  void SelectTeam(ABBotsPlayerState* player, int32 teamNum);
 	
-	
-	
+protected:
+  int32 winningTeam;
+
+  // Sets the winning team
+  virtual void DetermineMatchWinner() override;
 	
 };
