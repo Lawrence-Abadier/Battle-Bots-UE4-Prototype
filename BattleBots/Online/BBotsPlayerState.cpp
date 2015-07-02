@@ -50,15 +50,7 @@ void ABBotsPlayerState::OnRep_TeamColor()
 
 void ABBotsPlayerState::UpdateTeamColors()
 {
-//   AController* OwnerController = Cast<AController>(GetOwner());
-//   if (OwnerController != NULL)
-//   {
-//     AShooterCharacter* ShooterCharacter = Cast<AShooterCharacter>(OwnerController->GetCharacter());
-//     if (ShooterCharacter != NULL)
-//     {
-//       ShooterCharacter->UpdateTeamColorsAllMIDs();
-//     }
-//   }
+
 }
 
 int32 ABBotsPlayerState::GetTeamNum() const
@@ -79,30 +71,32 @@ int32 ABBotsPlayerState::GetDeaths() const
 void ABBotsPlayerState::ScoreKill(ABBotsPlayerState* Victim, int32 Points)
 {
   numKills++;
-  //ScorePoints(Points);
+  ScorePoints(Points);
 }
 
 void ABBotsPlayerState::ScoreDeath(ABBotsPlayerState* KilledBy, int32 Points)
 {
   numDeaths++;
-  //ScorePoints(Points);
+  ScorePoints(Points);
 }
 
-//void ABBotsPlayerState::ScorePoints(int32 Points)
-//{
-//   ABBotsPlayerState* const MyGameState = Cast<ABBotsPlayerState>(GetWorld()->GameState);
-//   if (MyGameState && teamNumber >= 0)
-//   {
-//     if (teamNumber >= MyGameState->TeamScores.Num())
-//     {
-//       MyGameState->TeamScores.AddZeroed(teamNumber - MyGameState->TeamScores.Num() + 1);
-//     }
-// 
-//     MyGameState->TeamScores[teamNumber] += Points;
-//   }
-// 
-//   Score += Points;
-//}
+void ABBotsPlayerState::ScorePoints(int32 Points)
+{
+  ABBotsPlayerState* const MyGameState = Cast<ABBotsPlayerState>(GetWorld()->GameState);
+  if (MyGameState && teamNumber >= 0)
+  {
+    if (teamNumber >= MyGameState->teamScores.Num())
+    {
+      // Increment array index to fit additional teams
+      MyGameState->teamScores.AddZeroed(teamNumber - MyGameState->teamScores.Num() + 1);
+    }
+
+    // Update team scores
+    MyGameState->teamScores[teamNumber] += Points;
+  }
+
+  Score += Points;
+}
 
 void ABBotsPlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutLifetimeProps) const
 {
