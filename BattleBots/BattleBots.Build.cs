@@ -6,6 +6,6 @@ public class BattleBots : ModuleRules
 {
 	public BattleBots(TargetInfo Target)
 	{
-		PublicDependencyModuleNames.AddRange(new string[] { "AIModule", "Core", "CoreUObject", "Engine", "InputCore" });
+        PublicDependencyModuleNames.AddRange(new string[] { "AIModule", "Core", "CoreUObject", "Engine", "InputCore", "UMG", "Slate", "SlateCore" });
 	}
 }
