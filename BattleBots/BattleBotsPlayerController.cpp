@@ -1,6 +1,7 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "UI/ChatBlockWidget.h"
 #include "Character/BBotCharacter.h"
 #include "BattleBotsPlayerController.h"
 #include "AI/Navigation/NavigationSystem.h"
@@ -193,7 +194,7 @@ FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, co
   FHitResult hitResult(ForceInit);
 
   //call GetWorld() from within an actor extending class
-  GetWorld()->LineTraceSingle(
+  GetWorld()->LineTraceSingleByChannel(
     hitResult,        //result
     Start,    //start
     End, //end
@@ -291,7 +292,7 @@ void ABattleBotsPlayerController::StartSpectating()
   ClientGotoState(NAME_Spectating);
 
   // Focus camera on the remaining player
-  ViewAPlayer(1);
+  //ViewAPlayer(1);
   
   //@todo: update hud to set spectating
 }

@@ -50,6 +50,10 @@ protected:
   UPROPERTY(BlueprintReadOnly, Category = "ChatLog")
   FChatLog ChatLog;
 
+  // True on up key press
+  UPROPERTY(BlueprintReadWrite, Category = "ChatLog")
+  bool bUpKeyPressed;
+
   // Returns the current timestamp of the message
   UPROPERTY(BlueprintReadWrite, Category = "TimeStamp")
   FTimeStamp TimeStamp;
@@ -57,15 +61,26 @@ protected:
   // Holds all the different message commands
   TArray<FString> MessageTypes;
 
-  // Adds a new text block to the scrollBox
-  UFUNCTION(BlueprintCallable, Category = "Chat Block")
+  // Logs incoming messages for quick reply
+  UFUNCTION(BlueprintCallable, Category = "ChatLog")
   void LogMessage(FChatMessage Message);
+
+  // When a player presses R, returns the last sender
+  UFUNCTION(BlueprintCallable, Category = "ChatLog")
+  FText ReplyToLastSender();
+
+  // When a player presses UP/Down Key, returns the last message
+  UFUNCTION(BlueprintCallable, Category = "ChatLog")
+  FText GetLastMessageSent();
 
   UFUNCTION(BlueprintCallable, Category = "Chat")
   FChatMessage ParseMessageData(const FString& UnParsedMessage);
 
   UFUNCTION(BlueprintCallable, Category = "Chat")
   EMessageType StringToMessageType(const FString& MessageCommand);
+
+  UFUNCTION(BlueprintCallable, Category = "Chat")
+  FText MessageTypeToText(const EMessageType& MessageType);
 
   UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Chat")
   FChatMessage RecieveMessage(FChatMessage MessageRecieved);
@@ -74,5 +89,13 @@ protected:
   UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Chat")
   bool CanRecieveMessage(const FChatMessage& MessageRecieved);
   bool CanRecieveMessage_Implementation(const FChatMessage& MessageRecieved);
+
+private:
+  // Accesses chat log to return the next message
+  UPROPERTY()
+  int32 ChatLogIndex;
+
+  UPROPERTY()
+  int32 CurrentChatLogIndex;
 };
 

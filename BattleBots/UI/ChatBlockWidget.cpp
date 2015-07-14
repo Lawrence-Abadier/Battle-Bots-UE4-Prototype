@@ -40,8 +40,53 @@ void UChatBlockWidget::InitWidgetPostProp()
 
 void UChatBlockWidget::LogMessage(FChatMessage Message)
 {
-  ChatLog.PreviousMessages.Add(Message);
-  ChatLog.PreviousSender = ChatLog.PreviousMessages.Last();
+  if (PName.EqualToCaseIgnored(Message.Sender))
+  {
+    // Log this character's messages only
+    ChatLog.PreviousMessages.Add(Message);
+    // Update the chat log index
+    ChatLogIndex = ChatLog.PreviousMessages.Num()-1;
+    CurrentChatLogIndex = ChatLogIndex;
+  }
+  else if (PName.EqualToCaseIgnored(Message.Reciever))
+  {
+    // Log the sender's name when whispered
+    ChatLog.LastSender = Message.Sender;
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("ADDING LAST SENDER"));
+  }
+}
+
+FText UChatBlockWidget::ReplyToLastSender()
+{
+  if (!ChatLog.LastSender.IsEmpty())
+  {
+    FText FormatedReplyMessage = FText::Format(LOCTEXT("MessageToDisplay", "/Whisper {0} "), ChatLog.LastSender);
+    return FormatedReplyMessage;
+  }
+  return FText::GetEmpty();
+}
+
+FText UChatBlockWidget::GetLastMessageSent()
+{
+  FChatMessage TempMsg;
+
+  if (ChatLog.PreviousMessages.IsValidIndex(CurrentChatLogIndex))
+  {
+    if (bUpKeyPressed)
+    {
+      TempMsg = ChatLog.PreviousMessages[CurrentChatLogIndex--];
+      CurrentChatLogIndex = FMath::Clamp(CurrentChatLogIndex, 0, ChatLogIndex);
+    }
+    else
+    {
+      TempMsg = ChatLog.PreviousMessages[CurrentChatLogIndex++];
+      CurrentChatLogIndex = FMath::Clamp(CurrentChatLogIndex, 0, ChatLogIndex);
+    }
+  }
+  
+  FText FormatedReplyMessage = FText::Format(LOCTEXT("MessageToDisplay", "{0} {1} "), MessageTypeToText(TempMsg.MessageType), TempMsg.Message);
+  
+  return FormatedReplyMessage;
 }
 
 FChatMessage UChatBlockWidget::RecieveMessage_Implementation(FChatMessage MessageRecieved)
@@ -83,11 +128,11 @@ FChatMessage UChatBlockWidget::RecieveMessage_Implementation(FChatMessage Messag
   }
 
   FText MessageToDisplay = FText::Format(FormatArgs,
-                                         TimeStamp.GetTimeStampText(),
-                                         bIsSender ? MessageRecieved.Reciever
-                                                   : MessageRecieved.Sender,
-                                         MessageRecieved.Message);
-  
+    TimeStamp.GetTimeStampText(),
+    bIsSender ? MessageRecieved.Reciever
+    : MessageRecieved.Sender,
+    MessageRecieved.Message);
+
   MessageRecieved.MessageToDisplay = MessageToDisplay;
 
   return MessageRecieved;
@@ -105,7 +150,7 @@ bool UChatBlockWidget::CanRecieveMessage_Implementation(const FChatMessage& Mess
     return MessageRecieved.TeamNumber == CState->GetTeamNum();
     break;
   case EMessageType::EWhisper:
-    return MessageRecieved.Reciever.EqualToCaseIgnored(MessageRecieved.Sender);
+    return !MessageRecieved.Reciever.EqualToCaseIgnored(MessageRecieved.Sender);
     break;
   default:
     break;
@@ -188,6 +233,20 @@ EMessageType UChatBlockWidget::StringToMessageType(const FString& MessageCommand
   }
 
   return EMessageType::EUnkown;
+}
+
+FText UChatBlockWidget::MessageTypeToText(const EMessageType& MessageType)
+{
+  switch (MessageType)
+  {
+  case EMessageType::ETeam:
+    return FText::FromString("/Team");
+  case EMessageType::EWhisper:
+    return FText::FromString("/Whisper");
+  default:
+    break;
+  }
+  return FText::FromString("/All");
 }
 
 #define LOCTEXT_NAMESPACE

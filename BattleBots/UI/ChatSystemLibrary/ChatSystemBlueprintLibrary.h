@@ -19,7 +19,7 @@ USTRUCT(BlueprintType)
 struct FTimeStamp{
   GENERATED_USTRUCT_BODY()
 
-    UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
+  UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
     FDateTime CurrentDateStamp;
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
     int32 Hour;
@@ -30,7 +30,7 @@ struct FTimeStamp{
 
   // Returns the displayable time stamp of the message
   FText GetTimeStampText(){
-    CurrentDateStamp.Now();
+    CurrentDateStamp = FDateTime::Now();
     Hour = CurrentDateStamp.GetHour12();
     Minutes = CurrentDateStamp.GetMinute();
     Seconds = CurrentDateStamp.GetSecond();
@@ -72,7 +72,7 @@ struct FChatLog{
   GENERATED_USTRUCT_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
-  FChatMessage PreviousSender;
+  FText LastSender;
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
   TArray<FChatMessage> PreviousMessages;
 };
@@ -85,7 +85,20 @@ class BATTLEBOTS_API UChatSystemBlueprintLibrary : public UBlueprintFunctionLibr
 {
 	GENERATED_BODY()
 	
-	
+public:
+
+    /** Retrieves the OS system Date and Time as a string at the instant this BP node runs. Use my other RealWorldTime node to get the time passed since the return value of this node! You can use this to record milliseconds/seconds/minutes/hours between events in game logic! */
+    UFUNCTION(BlueprintCallable, BlueprintPure, Category = "VictoryBPLibrary")
+    static FString RealWorldTime__GetCurrentOSTime(
+    int32& MilliSeconds,
+    int32& Seconds,
+    int32& Minutes,
+    int32& Hours12,
+    int32& Hours24,
+    int32& Day,
+    int32& Month,
+    int32& Year
+    );
 	
 	
 };
