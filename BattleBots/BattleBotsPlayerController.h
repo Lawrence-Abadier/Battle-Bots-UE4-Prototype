@@ -2,6 +2,7 @@
 #pragma once
 
 #include "AIController.h"
+#include "Controllers/BBotsBasePC.h"
 #include "BattleBotsGameMode.h"
 #include "GameFramework/PlayerController.h"
 #include "BattleBotsPlayerController.generated.h"
@@ -10,7 +11,7 @@
 class ABBotCharacter;
 
 UCLASS()
-class ABattleBotsPlayerController : public APlayerController
+class ABattleBotsPlayerController : public ABBotsBasePC
 {
 	GENERATED_BODY()
 
