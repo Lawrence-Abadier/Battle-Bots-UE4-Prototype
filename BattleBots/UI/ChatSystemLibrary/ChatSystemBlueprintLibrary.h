@@ -45,7 +45,7 @@ struct FTimeStamp{
 
 // Holds chat message data
 USTRUCT(BlueprintType)
-struct FChatMessage{
+struct FChatMessageStruct{
   GENERATED_USTRUCT_BODY()
 
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
@@ -74,7 +74,7 @@ struct FChatLog{
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
   FText LastSender;
   UPROPERTY(BlueprintReadWrite, Category = "ChatMessage")
-  TArray<FChatMessage> PreviousMessages;
+  TArray<FChatMessageStruct> PreviousMessages;
 };
 
 /**

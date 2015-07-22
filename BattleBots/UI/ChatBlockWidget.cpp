@@ -38,7 +38,7 @@ void UChatBlockWidget::InitWidgetPostProp()
   }
 }
 
-void UChatBlockWidget::LogMessage(FChatMessage Message)
+void UChatBlockWidget::LogMessage(FChatMessageStruct Message)
 {
   if (PName.EqualToCaseIgnored(Message.Sender))
   {
@@ -68,7 +68,7 @@ FText UChatBlockWidget::ReplyToLastSender()
 
 FText UChatBlockWidget::GetLastMessageSent()
 {
-  FChatMessage TempMsg;
+  FChatMessageStruct TempMsg;
 
   if (ChatLog.PreviousMessages.IsValidIndex(CurrentChatLogIndex))
   {
@@ -89,7 +89,7 @@ FText UChatBlockWidget::GetLastMessageSent()
   return FormatedReplyMessage;
 }
 
-FChatMessage UChatBlockWidget::RecieveMessage_Implementation(FChatMessage MessageRecieved)
+FChatMessageStruct UChatBlockWidget::RecieveMessage_Implementation(FChatMessageStruct MessageRecieved)
 {
   //@todo fix copy operator,bug?
   //MessageRecieved.TimeStamp = TimeStamp.GetTimeStampText();
@@ -139,7 +139,7 @@ FChatMessage UChatBlockWidget::RecieveMessage_Implementation(FChatMessage Messag
 }
 
 
-bool UChatBlockWidget::CanRecieveMessage_Implementation(const FChatMessage& MessageRecieved)
+bool UChatBlockWidget::CanRecieveMessage_Implementation(const FChatMessageStruct& MessageRecieved)
 {
   switch (MessageRecieved.MessageType)
   {
@@ -159,10 +159,10 @@ bool UChatBlockWidget::CanRecieveMessage_Implementation(const FChatMessage& Mess
 }
 
 
-FChatMessage UChatBlockWidget::ParseMessageData(const FString& UnParsedMessage)
+FChatMessageStruct UChatBlockWidget::ParseMessageData(const FString& UnParsedMessage)
 {
   // We reset the struct data every message. See ChatMessage for more details.
-  FChatMessage TempChatMessage;
+  FChatMessageStruct TempChatMessage;
   ChatMessage = TempChatMessage;
 
   // Set the sender to this character's name and TeamNumber

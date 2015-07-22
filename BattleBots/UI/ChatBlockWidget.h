@@ -44,7 +44,7 @@ protected:
   / hence why its in the header. Gets reset every msg.
   / ChatMessage has to be reset every time to prevent previous data from corrupting new msgs.*/
   UPROPERTY()
-  FChatMessage ChatMessage;
+  FChatMessageStruct ChatMessage;
 
   // Logs all text messages relevant to the player
   UPROPERTY(BlueprintReadOnly, Category = "ChatLog")
@@ -63,7 +63,7 @@ protected:
 
   // Logs incoming messages for quick reply
   UFUNCTION(BlueprintCallable, Category = "ChatLog")
-  void LogMessage(FChatMessage Message);
+  void LogMessage(FChatMessageStruct Message);
 
   // When a player presses R, returns the last sender
   UFUNCTION(BlueprintCallable, Category = "ChatLog")
@@ -74,7 +74,7 @@ protected:
   FText GetLastMessageSent();
 
   UFUNCTION(BlueprintCallable, Category = "Chat")
-  FChatMessage ParseMessageData(const FString& UnParsedMessage);
+  FChatMessageStruct ParseMessageData(const FString& UnParsedMessage);
 
   UFUNCTION(BlueprintCallable, Category = "Chat")
   EMessageType StringToMessageType(const FString& MessageCommand);
@@ -83,12 +83,12 @@ protected:
   FText MessageTypeToText(const EMessageType& MessageType);
 
   UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Chat")
-  FChatMessage RecieveMessage(FChatMessage MessageRecieved);
-  FChatMessage RecieveMessage_Implementation(FChatMessage MessageRecieved);
+  FChatMessageStruct RecieveMessage(FChatMessageStruct MessageRecieved);
+  FChatMessageStruct RecieveMessage_Implementation(FChatMessageStruct MessageRecieved);
 
   UFUNCTION(BlueprintNativeEvent, BlueprintCallable, Category = "Chat")
-  bool CanRecieveMessage(const FChatMessage& MessageRecieved);
-  bool CanRecieveMessage_Implementation(const FChatMessage& MessageRecieved);
+  bool CanRecieveMessage(const FChatMessageStruct& MessageRecieved);
+  bool CanRecieveMessage_Implementation(const FChatMessageStruct& MessageRecieved);
 
 private:
   // Accesses chat log to return the next message
