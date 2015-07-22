@@ -5,6 +5,7 @@
 
 // For debug purposes
 #include "Engine.h"
+#include "Online.h"
 
 #include "Net/UnrealNetwork.h"
 //#include "EngineMinimal.h"
