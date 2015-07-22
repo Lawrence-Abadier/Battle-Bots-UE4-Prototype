@@ -1,13 +1,14 @@
 // Copyright 2015 VMR Games, Inc. All Rights Reserved.
 #pragma once
 #include "Online/BBotsPlayerState.h"
+#include "Online/BBotsBaseGameMode.h"
 #include "GameFramework/GameMode.h"
 #include "BattleBotsGameMode.generated.h"
 
 // UCLASS(config=Game)
 
 UCLASS(minimalapi)
-class ABattleBotsGameMode : public AGameMode
+class ABattleBotsGameMode : public ABBotsBaseGameMode
 {
 	GENERATED_BODY()
 

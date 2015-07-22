@@ -13,6 +13,8 @@ class BATTLEBOTS_API ABBotsLobbyGameMode : public ABBotsBaseGameMode
 {
 	GENERATED_BODY()
 	
+public:
+  ABBotsLobbyGameMode(const FObjectInitializer& ObjectInitializer);
 	
 	
 	
