@@ -56,6 +56,8 @@ protected:
   // The match ends when true
   virtual bool ReadyToEndMatch();
 
+  virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+
   // Handles the DefaultTimer timer - runs every second
   FTimerHandle defaultTimerHandler;
   FTimerHandle warmupTimerHandler;

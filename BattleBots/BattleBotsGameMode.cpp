@@ -1,6 +1,7 @@
 // Copyright 2015 VMR Games, Inc. All Rights Reserved.
 
 #include "BattleBots.h"
+#include "World/BBotsPlayerStart.h"
 #include "Online/BBotsGameInstance.h"
 #include "Online/BBotsGameState.h"
 #include "BattleBotsGameMode.h"
@@ -264,6 +265,29 @@ bool ABattleBotsGameMode::ReadyToEndMatch()
 {
   //@todo: end match when game timer is up
   return false;
+}
+
+AActor* ABattleBotsGameMode::ChoosePlayerStart_Implementation(AController* Player)
+{
+  // Choose a player start
+  ABBotsPlayerStart* FoundPlayerStart = NULL;
+  ABBotsPlayerState* PState = Cast<ABBotsPlayerState>(Player->PlayerState);
+
+  for (TActorIterator<ABBotsPlayerStart> It(GetWorld()); It; ++It)
+  {
+    ABBotsPlayerStart* PlayerStart = *It;
+
+    if (PlayerStart->GetTeamNum() == PState->GetTeamNum())
+    {
+      // Only spawn at team spawn location
+      FoundPlayerStart = PlayerStart;
+      return FoundPlayerStart;
+    }
+  }
+
+  GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("PlayerStart Failed!"));
+  // If we can't find a team spot then spawn at a rand location
+  return Super::ChoosePlayerStart_Implementation(Player);
 }
 
 

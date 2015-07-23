@@ -3,13 +3,14 @@
 #pragma once
 
 #include "GameFramework/PlayerState.h"
+#include "Interfaces/BBotsTeamInterface.h"
 #include "BBotsPlayerState.generated.h"
 
 /**
  *
  */
 UCLASS()
-class BATTLEBOTS_API ABBotsPlayerState : public APlayerState
+class BATTLEBOTS_API ABBotsPlayerState : public APlayerState, public IBBotsTeamInterface
 {
   GENERATED_BODY()
 
@@ -48,7 +49,10 @@ public:
 
   /** get current team */
   UFUNCTION(BlueprintCallable, Category = "PlayerState")
-  int32 GetTeamNum() const;
+  virtual uint8 GetTeamNum() const
+  {
+    return teamNumber;
+  }
 
   /** get number of kills */
   UFUNCTION(BlueprintCallable, Category = "PlayerState")
@@ -69,7 +73,7 @@ protected:
 
   /** team number */
   UPROPERTY(Transient, ReplicatedUsing = OnRep_TeamColor)
-  int32 teamNumber;
+  uint8 teamNumber;
 
   /** number of kills */
   UPROPERTY(Transient, Replicated)

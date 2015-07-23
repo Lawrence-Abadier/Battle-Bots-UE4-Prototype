@@ -54,11 +54,6 @@ void ABBotsPlayerState::UpdateTeamColors()
 
 }
 
-int32 ABBotsPlayerState::GetTeamNum() const
-{
-  return teamNumber;
-}
-
 int32 ABBotsPlayerState::GetKills() const
 {
   return numKills;
