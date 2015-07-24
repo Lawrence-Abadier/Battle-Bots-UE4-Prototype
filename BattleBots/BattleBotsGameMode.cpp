@@ -217,11 +217,6 @@ bool ABattleBotsGameMode::CanDealDamage(class ABBotsPlayerState* damageInstigato
   return damageInstigator && damagedPlayer && (damageInstigator->GetTeamNum() != damagedPlayer->GetTeamNum());
 }
 
-// bool ABattleBotsGameMode::ShouldSpawnAtStartSpot(AController* Player)
-// {
-//   return false;
-// }
-
 bool ABattleBotsGameMode::CanDealDamageTest(AController* damageInstigator, AController* damagedPlayer) const
 {
   ABBotsPlayerState* killerPlayerState = damageInstigator ? Cast<ABBotsPlayerState>(damageInstigator->PlayerState) : NULL;
@@ -240,11 +235,11 @@ bool ABattleBotsGameMode::CanRespawnImmediately()
 }
 
 
-bool ABattleBotsGameMode::CanSpectate(APlayerController* Viewer, APlayerState* ViewTarget)
+bool ABattleBotsGameMode::CanSpectate_Implementation(APlayerController* Viewer, APlayerState* ViewTarget)
 {
   ABBotsPlayerState* const ViewerPS = Cast<ABBotsPlayerState>(Viewer->PlayerState);
   ABBotsPlayerState* const ViewTargetPS = Cast<ABBotsPlayerState>(ViewTarget);
-  return (ViewerPS && ViewTargetPS && (ViewerPS->GetTeamNum() != ViewTargetPS->GetTeamNum()));
+  return (ViewerPS && ViewTargetPS && (ViewerPS->GetTeamNum() == ViewTargetPS->GetTeamNum()));
 }
 
 void ABattleBotsGameMode::WarmUpTimeEnd()

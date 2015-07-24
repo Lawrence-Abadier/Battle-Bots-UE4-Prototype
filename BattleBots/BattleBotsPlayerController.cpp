@@ -272,7 +272,8 @@ void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
   //@todo: check gamestate if round has ended
   if (bCanRespawn)
   {
-    //@todo: respawn player
+    // Find the spawn location based on team #
+    StartSpot = FindStartSpot();
     currGM->RestartPlayer(this);
   }
   else
@@ -280,6 +281,25 @@ void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
     StartSpectating();
   }
 }
+
+
+AActor* ABattleBotsPlayerController::FindStartSpot()
+{
+  ABBotsPlayerState* PState = Cast<ABBotsPlayerState>(PlayerState);
+  for (TActorIterator<ABBotsPlayerStart> It(GetWorld()); It; ++It)
+  {
+    ABBotsPlayerStart* PlayerStart = *It;
+
+    if (PlayerStart->GetTeamNum() == PState->GetTeamNum())
+    {
+      // Only spawn at team spawn location
+      return PlayerStart;
+    }
+  }
+  // Else return the original spawn spot
+  return StartSpot.Get();
+}
+
 
 void ABattleBotsPlayerController::StartSpectating()
 {
@@ -292,7 +312,7 @@ void ABattleBotsPlayerController::StartSpectating()
   ClientGotoState(NAME_Spectating);
 
   // Focus camera on the remaining player
-  //ViewAPlayer(1);
+  ViewAPlayer(1);
   
   //@todo: update hud to set spectating
 }

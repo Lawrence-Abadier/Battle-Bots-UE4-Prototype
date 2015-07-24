@@ -112,6 +112,12 @@ public:
 protected:
   /** update camera when pawn dies and enable spectating if applicable.*/
   virtual void PawnPendingDestroy(APawn* deadPawn) override;
+  
+  /* Returns a respawn spot based on team number. 
+  This is required so if mid match we swap team locations, 
+  the players would spawn in the correct updated location 
+  and not the original spawn spot at the beginning of the game. */
+  AActor* FindStartSpot();
 
 private:
   // The current GM in play

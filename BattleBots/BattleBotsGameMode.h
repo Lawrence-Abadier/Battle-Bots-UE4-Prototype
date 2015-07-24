@@ -103,7 +103,7 @@ protected:
   virtual bool IsWinner(class ABBotsPlayerState* PlayerState) const;
 
   /* Don't allow spectating of enemy teams */
-  virtual bool CanSpectate(APlayerController* Viewer, APlayerState* ViewTarget);
+  virtual bool CanSpectate_Implementation(APlayerController* Viewer, APlayerState* ViewTarget) override;
 
 private:
   // The time when the game started
