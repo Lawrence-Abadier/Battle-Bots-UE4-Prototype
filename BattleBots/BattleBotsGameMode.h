@@ -58,6 +58,13 @@ protected:
 
   virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
+
+  /* Returns a respawn spot based on team number.
+  This is required so if mid match we swap team locations,
+  the players would spawn in the correct updated location
+  and not the original spawn spot at the beginning of the game. */
+  virtual AActor* FindPlayerStart_Implementation(AController* Player, const FString& IncomingName) override;
+
   // Handles the DefaultTimer timer - runs every second
   FTimerHandle defaultTimerHandler;
   FTimerHandle warmupTimerHandler;

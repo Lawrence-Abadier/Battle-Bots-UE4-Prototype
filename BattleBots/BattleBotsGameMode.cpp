@@ -287,4 +287,21 @@ AActor* ABattleBotsGameMode::ChoosePlayerStart_Implementation(AController* Playe
 
 
 
+AActor* ABattleBotsGameMode::FindPlayerStart_Implementation(AController* Player, const FString& IncomingName)
+{
+  ABBotsPlayerState* PState = Cast<ABBotsPlayerState>(Player->PlayerState);
+  for (TActorIterator<ABBotsPlayerStart> It(GetWorld()); It; ++It)
+  {
+    ABBotsPlayerStart* PlayerStart = *It;
+
+    if (PlayerStart->GetTeamNum() == PState->GetTeamNum())
+    {
+      // Only spawn at team spawn location
+      return PlayerStart;
+    }
+  }
+  // Else return the original spawn spot
+  return Super::FindPlayerStart_Implementation(Player, IncomingName);
+}
+
 
