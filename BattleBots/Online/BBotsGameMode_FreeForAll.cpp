@@ -17,3 +17,9 @@ void ABBotsGameMode_FreeForAll::DetermineMatchWinner()
     winningPlayer = Cast<ABBotsPlayerState>(FMath::Max<APlayerState*>(MyGameState->PlayerArray));
   }
 }
+
+// FFA matches, players can spectate anyone.
+bool ABBotsGameMode_FreeForAll::CanSpectate_Implementation(APlayerController* Viewer, APlayerState* ViewTarget)
+{
+  return true;
+}

@@ -25,5 +25,7 @@ protected:
 
   // Sets the winning player
   virtual void DetermineMatchWinner() override;
+
+  virtual bool CanSpectate_Implementation(APlayerController* Viewer, APlayerState* ViewTarget) override;
 	
 };
