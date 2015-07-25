@@ -31,6 +31,8 @@ void ABattleBotsPlayerController::BeginPlay()
     if (currGM)
     {
       bCanRespawn = currGM->CanRespawnImmediately();
+      RespawnTime = currGM->GetRespawnTime();
+      RespawnDeathScale = currGM->GetRespawnDeathScale();
     }
   }
 
@@ -272,12 +274,27 @@ void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
   //@todo: check gamestate if round has ended
   if (bCanRespawn)
   {
-    currGM->RestartPlayer(this);
+    RespawnPlayer();
   }
   else
   {
+    // Set the respawn timer and start spectating
+    GetWorldTimerManager().SetTimer(RespawnHandler, this, &ABattleBotsPlayerController::RespawnPlayer, RespawnTime, false);
+    //Scale the respawn timer per death
+    RespawnTime *= RespawnDeathScale;
     StartSpectating();
   }
+}
+
+float ABattleBotsPlayerController::GetTimeTillSpawn()
+{
+  return GetWorldTimerManager().GetTimerRemaining(RespawnHandler);
+}
+
+void ABattleBotsPlayerController::RespawnPlayer()
+{
+  currGM->RestartPlayer(this);
+  GetWorldTimerManager().ClearTimer(RespawnHandler);
 }
 
 void ABattleBotsPlayerController::StartSpectating()
@@ -295,7 +312,6 @@ void ABattleBotsPlayerController::StartSpectating()
   //@todo: if no teammate alive, create a static spectate spot
   //@todo: update hud to set spectating
 }
-
 
 
 

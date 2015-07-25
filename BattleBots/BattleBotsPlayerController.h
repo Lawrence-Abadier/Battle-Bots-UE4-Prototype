@@ -109,9 +109,17 @@ public:
   // Starts spectating on dead players
   void StartSpectating();
 
+  // Returns time till spawn
+  UFUNCTION(BlueprintCallable, Category = "Respawn")
+  float GetTimeTillSpawn();
+
 protected:
   /** update camera when pawn dies and enable spectating if applicable.*/
   virtual void PawnPendingDestroy(APawn* deadPawn) override;
+
+  // Called after the respawn timer is up
+  UFUNCTION()
+  virtual void RespawnPlayer();
 
 private:
   // The current GM in play
@@ -119,4 +127,13 @@ private:
 
   // Whether to respawn or spectate on death
   bool bCanRespawn;
+
+  // Respawns the player after respawn timer is up
+  FTimerHandle RespawnHandler;
+
+  // The initial respawn time
+  float RespawnTime;
+
+  // The respawn time scales per death as punishment
+  float RespawnDeathScale;
 };

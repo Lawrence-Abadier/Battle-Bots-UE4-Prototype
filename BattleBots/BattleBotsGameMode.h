@@ -39,6 +39,9 @@ public:
   UFUNCTION(BlueprintCallable, Category = "Game Rules")
   bool CanRespawnImmediately();
 
+  FORCEINLINE float GetRespawnTime(){ return RespawnTime; }
+  FORCEINLINE float GetRespawnDeathScale(){ return RespawnDeathScale; }
+
   /** finish current match and lock players */
   UFUNCTION(exec)
   void FinishMatch();
@@ -95,6 +98,14 @@ protected:
   /* Can we deal damage to players in the same team */
   UPROPERTY(EditDefaultsOnly, Category = "Rules")
   bool bAllowFriendlyFireDamage;
+
+  // The initial respawn time
+  UPROPERTY(EditDefaultsOnly, Category = "Respawn")
+  float RespawnTime;
+  
+  // The respawn time scales per death as punishment
+  UPROPERTY(EditDefaultsOnly, Category = "Respawn")
+  float RespawnDeathScale;
 
   // Whether to respawn or spectate on death
   UPROPERTY(EditDefaultsOnly, Category = "Rules")
