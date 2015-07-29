@@ -351,6 +351,20 @@ void ASpellSystem::AOETick(float DeltaSeconds)
   }
 }
 
+void ASpellSystem::Reset()
+{
+  Super::Reset();
+
+  SetActorEnableCollision(false);
+  SetActorHiddenInGame(true);
+}
+
+void ASpellSystem::Reset_Implementation()
+{
+  //Reset();
+  Destroy();
+}
+
 
 
 

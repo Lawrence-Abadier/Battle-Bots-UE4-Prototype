@@ -53,6 +53,9 @@ protected:
   // Gets called when warm-up time is over and game is ready to start
   virtual void WarmUpTimeEnd();
 
+  // Resets game to initial state
+  virtual void EndOfRoundReset();
+
   // If true the match will begin
   virtual bool ReadyToStartMatch();
 
@@ -78,7 +81,7 @@ protected:
 
   /** delay between first player login and starting match */
   UPROPERTY(EditDefaultsOnly, Category = "Rules")
-  int32 warmupTime;
+  float warmupTime;
 
   /** match duration */
   UPROPERTY(EditDefaultsOnly, Category = "Rules")

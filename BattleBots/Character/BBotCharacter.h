@@ -134,10 +134,6 @@ protected:
   /* Character Attributes, Health, and Resource                           */
   /************************************************************************/
 public:
-  /** Identifies if pawn is in its dying state */
-  UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Health")
-  uint32 bIsDying : 1;
-
   UFUNCTION(BlueprintCallable, Category = "PlayerCondition")
   float GetCurrentHealth() const;
   
@@ -233,13 +229,25 @@ protected:
   /* Damage and Death                                                     */
   /************************************************************************/
 public:
+  FORCEINLINE bool IsDying() const { return bIsDying; }
+
+  FORCEINLINE void SetIsDying(bool bDying) { ServerSetIsDying(bIsDying); }
+
   // Take damage and handle death
   virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
   
   // Checks to see if the character can recieve damage (Teamates, immunity, etc)
   virtual bool CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType);
 
+  // Used for round reset
+  virtual void TurnOff() override;
+
 protected:
+
+  /** Identifies if pawn is in its dying state */
+  UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Health")
+  uint32 bIsDying : 1;
+
   // Must be overridden to handle block rating on appropriate classes
   virtual float ProcessDamageTypes(float Damage, struct FDamageEvent const& DamageEvent);
 
@@ -262,6 +270,11 @@ private:
   UFUNCTION(Reliable, NetMulticast)
   void SetRagdollPhysics();
   void SetRagdollPhysics_Implementation();
+
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerSetIsDying(bool bDying);
+  virtual void ServerSetIsDying_Implementation(bool bDying);
+  virtual bool ServerSetIsDying_Validate(bool bDying);
   /************************************************************************/
   /* SpellBar and Resource Management                                     */
   /************************************************************************/
@@ -292,10 +305,24 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellBar")
   bool CanCast(int32 spellIndex);
 
+  UFUNCTION(BlueprintCallable, Category = "SpellBar")
+  void EnableSpellCasting(bool bCanCast);
+
+  FORCEINLINE bool IsSpellCastingEnabled() const { return bCastingEnabled; }
+
 protected:
   // Array of spell classes in Spell-Bar, Required by GetClass()
   UPROPERTY(Replicated)
   TArray<TSubclassOf<class ASpellSystem>> spellBar_Internal;
+
+  // If true, the player can attempt to cast the spell
+  UPROPERTY(Replicated)
+  bool bCastingEnabled;
+
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerEnableSpellCasting(bool bCanCast);
+  virtual void ServerEnableSpellCasting_Implementation(bool bCanCast);
+  virtual bool ServerEnableSpellCasting_Validate(bool bCanCast);
 
 private:
   /* Handles the casting time of the spell

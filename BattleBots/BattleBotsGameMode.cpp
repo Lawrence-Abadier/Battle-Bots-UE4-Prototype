@@ -46,7 +46,7 @@ void ABattleBotsGameMode::PreInitializeComponents()
 
   /* Set timer to run every second */
   GetWorldTimerManager().SetTimer(defaultTimerHandler, this, &ABattleBotsGameMode::DefaultTimer, 1.f/*GetWorldSettings()->GetEffectiveTimeDilation()*/, true);
-  //GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::WarmUpTimeEnd, warmupTime, false);
+  GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::WarmUpTimeEnd, warmupTime, false);
 }
 
 void ABattleBotsGameMode::DefaultTimer()
@@ -65,19 +65,18 @@ void ABattleBotsGameMode::DefaultTimer()
   ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
 
   if (MyGameState && GameInstance
-    && GameInstance->GetRoundsThisMatch() < maxNumOfRounds
+    && MyGameState->GetRoundsThisMatch() < maxNumOfRounds
     && MyGameState->remainingTime > 0
     && !MyGameState->bTimerPaused)
   {
-    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(GameInstance->GetRoundsThisMatch()));
+    GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(MyGameState->GetRoundsThisMatch()));
     MyGameState->remainingTime--;
 
     if (MyGameState->remainingTime <= 0)
     {
       if (GetMatchState() == MatchState::WaitingPostMatch)
       {
-        GameInstance->IncRoundsThisMatch();
-        RestartGame();
+        MyGameState->IncRoundsThisMatch();
       }
       else if (GetMatchState() == MatchState::InProgress)
       {
@@ -99,7 +98,7 @@ void ABattleBotsGameMode::DefaultTimer()
       }
       else if (GetMatchState() == MatchState::WaitingToStart)
       {
-        GameInstance->IncRoundsThisMatch();
+        MyGameState->IncRoundsThisMatch();
         StartMatch();
       }
     }
@@ -242,9 +241,29 @@ bool ABattleBotsGameMode::CanSpectate_Implementation(APlayerController* Viewer, 
   return (ViewerPS && ViewTargetPS && (ViewerPS->GetTeamNum() == ViewTargetPS->GetTeamNum()));
 }
 
+void ABattleBotsGameMode::EndOfRoundReset()
+{
+  for (FActorIterator It(GetWorld()); It; ++It)
+  {
+    if (It->GetClass()->ImplementsInterface(UBBotsResetInterface::StaticClass()))
+    {
+      IBBotsResetInterface::Execute_Reset(*It);
+    }
+  }
+
+  // Destroys all dead bodies; using RESET interface did not delete all of them in time
+  for (TObjectIterator<APawn> Itr; Itr; ++Itr)
+  {
+    if (!Itr->Controller)
+    {
+      Itr->Destroy();
+    }
+  }
+}
+
 void ABattleBotsGameMode::WarmUpTimeEnd()
 {
-
+  EndOfRoundReset();
 }
 
 bool ABattleBotsGameMode::ReadyToStartMatch()
@@ -303,5 +322,7 @@ AActor* ABattleBotsGameMode::FindPlayerStart_Implementation(AController* Player,
   // Else return the original spawn spot
   return Super::FindPlayerStart_Implementation(Player, IncomingName);
 }
+
+
 
 

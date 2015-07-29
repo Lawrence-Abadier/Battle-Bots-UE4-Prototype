@@ -15,11 +15,6 @@ class BATTLEBOTS_API UBBotsGameInstance : public UGameInstance
 	GENERATED_BODY()
 	
 public:
-  // Returns the total number of rounds this match
-  FORCEINLINE int32 GetRoundsThisMatch() const{ return totalNumRounds; }
-  // Increments the total number of rounds this match
-  FORCEINLINE void IncRoundsThisMatch() { totalNumRounds++; }
-
   // Returns true if the game is online
   FORCEINLINE bool GetIsOnline() const { return bIsOnline; }
 
@@ -32,7 +27,4 @@ private:
 
   // Whether the match is online or not
   bool bIsOnline;
-
-  // The total number of rounds
-  int32 totalNumRounds;
 };

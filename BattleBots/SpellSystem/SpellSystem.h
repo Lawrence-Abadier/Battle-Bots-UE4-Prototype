@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Character/BBotCharacter.h"
+#include "Interfaces/BBotsResetInterface.h"
 #include "GameFramework/Actor.h"
 #include "SpellSystem.generated.h"
 
@@ -45,7 +46,7 @@ struct FSpellData{
 };
 
 UCLASS()
-class BATTLEBOTS_API ASpellSystem : public AActor
+class BATTLEBOTS_API ASpellSystem : public AActor, public IBBotsResetInterface
 {
 	GENERATED_BODY()
 	
@@ -61,6 +62,12 @@ public:
 	
 	// Called every frame
 	virtual void Tick( float DeltaSeconds ) override;
+
+  /** Hides actor and disable collision */
+  virtual void Reset() override;
+
+  // Interface call on match reset.
+  virtual void Reset_Implementation() override;
 
   /** An object that holds our spell configurations*/
   UPROPERTY(EditDefaultsOnly, Category = Config)

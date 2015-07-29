@@ -25,17 +25,7 @@ void ABattleBotsPlayerController::BeginPlay()
 {
   Super::BeginPlay();
 
-  if (HasAuthority())
-  {
-    currGM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
-    if (currGM)
-    {
-      bCanRespawn = currGM->CanRespawnImmediately();
-      RespawnTime = currGM->GetRespawnTime();
-      RespawnDeathScale = currGM->GetRespawnDeathScale();
-    }
-  }
-
+  InitPostRoundReset();
 }
 
 void ABattleBotsPlayerController::PlayerTick(float DeltaTime)
@@ -142,9 +132,12 @@ ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 
 void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
 {
-  RotateToMouseCursor();
-  if (playerCharacter)
+  // Temp work-around, replicating pointers is sometimes null
+  playerCharacter = ReferencePossessedPawn();
+  
+  if (playerCharacter && playerCharacter->CanCast(index))
   {
+    RotateToMouseCursor();
     playerCharacter->CastFromSpellBar(index, GetLineOfSightImpactPoint());
   }
 }
@@ -210,8 +203,12 @@ FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, co
 
 FVector ABattleBotsPlayerController::GetLineOfSightImpactPoint()
 {
-  return SingleLineTrace(playerCharacter->GetActorLocation(),
-    GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
+  if (!playerCharacter)
+  {
+    return FVector::ZeroVector;
+  }
+
+  return SingleLineTrace(playerCharacter->GetActorLocation(), GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
 }
 
 void ABattleBotsPlayerController::RotateToMouseCursor()
@@ -243,6 +240,7 @@ void ABattleBotsPlayerController::RotateToMouseCursor()
 void ABattleBotsPlayerController::ServerRotateToMouseCursor_Implementation(FRotator newRotation)
 {
   playerCharacter = ReferencePossessedPawn();
+
   // Set the actor rotation on the server
   playerCharacter->SetActorRotation(newRotation);
   // Update the local actor rotation
@@ -270,11 +268,17 @@ void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimePro
 
 void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
 {
+  // Get death location to setup death cam
+  CameraLocation = Cast<ABBotCharacter>(deadPawn)->GetTopDownCameraComponent()->GetComponentToWorld().GetLocation();
+  CameraRotation= FRotator(-60.0f, 0.0f, 0.0f);
+  
   Super::PawnPendingDestroy(deadPawn);
+
   //@todo: check gamestate if round has ended
-  if (bCanRespawn)
+  if (bCanRespawnInstantly)
   {
-    RespawnPlayer();
+    // Add a delay to prevent D/C from attempting to respawn too quickly
+    GetWorldTimerManager().SetTimer(RespawnHandler, this, &ABattleBotsPlayerController::RespawnPlayer, 0.1, false);
   }
   else
   {
@@ -312,6 +316,82 @@ void ABattleBotsPlayerController::StartSpectating()
   //@todo: if no teammate alive, create a static spectate spot
   //@todo: update hud to set spectating
 }
+
+
+void ABattleBotsPlayerController::ViewAPlayer(int32 dir)
+{
+  // Find a teammate to spectate
+  APlayerState* const PlayerState = GetNextViewablePlayer(dir);
+
+  if (PlayerState != NULL)
+  {
+    // Found a teammate to spectate
+    SetViewTarget(PlayerState);
+  }
+  else
+  {
+    // Death Cam
+    ClientSetSpectatorCamera(CameraLocation, CameraRotation);
+  }
+}
+
+void ABattleBotsPlayerController::ClientSetSpectatorCamera_Implementation(FVector CameraLocation, FRotator CameraRotation)
+{
+  SetInitialLocationAndRotation(CameraLocation, CameraRotation);
+  SetViewTarget(this);
+}
+
+void ABattleBotsPlayerController::Reset()
+{
+  if (HasAuthority())
+  {
+	  bCanRespawnInstantly = true;
+	  if (GetPawn())
+	  {
+	    GetPawn()->Reset();
+	  }
+	  else
+	  {
+	    RespawnPlayer();
+	  }
+    InitPostRoundReset();
+  }
+}
+
+void ABattleBotsPlayerController::InitPostRoundReset()
+{
+  if (HasAuthority())
+  {
+    currGM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
+    if (currGM)
+    {
+      bCanRespawnInstantly = currGM->CanRespawnImmediately();
+      RespawnTime = currGM->GetRespawnTime();
+      RespawnDeathScale = currGM->GetRespawnDeathScale();
+    }
+  }
+}
+void ABattleBotsPlayerController::Reset_Implementation()
+{
+  if (HasAuthority())
+  {
+    APawn* const MyPawn = GetPawn();
+    if (MyPawn)
+    {
+      MyPawn->TurnOff();
+    }
+    
+    GetWorldTimerManager().SetTimer(RespawnHandler, this, &ABattleBotsPlayerController::Reset, 2.0, false);
+  }
+}
+
+void ABattleBotsPlayerController::OnRep_Pawn()
+{
+  Super::OnRep_Pawn();
+
+  playerCharacter = ReferencePossessedPawn();
+}
+
 
 
 

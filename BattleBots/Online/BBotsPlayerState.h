@@ -4,22 +4,25 @@
 
 #include "GameFramework/PlayerState.h"
 #include "Interfaces/BBotsTeamInterface.h"
+#include "Interfaces/BBotsResetInterface.h"
 #include "BBotsPlayerState.generated.h"
 
 /**
  *
  */
 UCLASS()
-class BATTLEBOTS_API ABBotsPlayerState : public APlayerState, public IBBotsTeamInterface
+class BATTLEBOTS_API ABBotsPlayerState : public APlayerState, public IBBotsTeamInterface, public IBBotsResetInterface
 {
   GENERATED_BODY()
 
 public:
   ABBotsPlayerState(const FObjectInitializer& ObjectInitializer);
 
-  // Begin APlayerState interface
   /** clear scores */
   virtual void Reset() override;
+
+  // Interface call on match reset.
+  virtual void Reset_Implementation() override;
 
   /**
   * Set the team

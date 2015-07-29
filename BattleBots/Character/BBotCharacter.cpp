@@ -54,6 +54,8 @@ void ABBotCharacter::PostInitializeComponents()
     maxOil = oil;
     GetCharacterMovement()->MaxWalkSpeed = characterConfig.movementSpeed;
 
+    EnableSpellCasting(true);
+
     // Set the player controller that is possessing this pawn
     playerController = (Controller != NULL) ? Cast<ABattleBotsPlayerController>(Controller) : Cast<ABattleBotsPlayerController>(GetOwner());
 
@@ -66,9 +68,8 @@ void ABBotCharacter::PostInitializeComponents()
 void ABBotCharacter::BeginPlay()
 {
   Super::BeginPlay();
-
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Spawning arch char"));
-
+  
   // Is called to ensure that the default stance is triggered on spawn
   OnRep_StanceChanged();
 }
@@ -309,7 +310,7 @@ bool ABBotCharacter::ServerSetResistAll_Validate(float newResistanceMod)
 
 bool ABBotCharacter::CanDie(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser)
 {
-  if (bIsDying										// already dying
+  if (IsDying()										// already dying
     || IsPendingKill()								// already destroyed
     || Role != ROLE_Authority						// not authority
     || GetWorld()->GetAuthGameMode() == NULL
@@ -338,14 +339,14 @@ bool ABBotCharacter::Die(float killingDamage, FDamageEvent const& DamageEvent, A
 
 void ABBotCharacter::OnDeath_Implementation(float killingDamage, FDamageEvent const& DamageEvent, APawn* pawnInstigator, AActor* damageCauser)
 {
-  if (bIsDying)
+  if (IsDying())
   {
     return;
   }
 
   bReplicateMovement = false;
   bTearOff = true;
-  bIsDying = true;
+  SetIsDying(true);
 
   //@TODO: Fix role authority, maybe adjust collision under authority, and ragdoll on multicast
 //   if (Role == ROLE_Authority)
@@ -438,12 +439,11 @@ void ABBotCharacter::CastOnRightClick()
 bool ABBotCharacter::CanCast(int32 spellIndex)
 {
   // If the character is currently dying prevent casting.
-  if (bIsDying)
-  {
-    return false;
-  }
-
-  if (spellBar.IsValidIndex(spellIndex) && spellBar[spellIndex]->IsValidLowLevel())
+  if (IsSpellCastingEnabled() 
+    && !GetIsStunned() 
+    && spellBar.IsValidIndex(spellIndex) 
+    && spellBar[spellIndex]->IsValidLowLevel() 
+    && !IsDying())
   {
     spellCost = spellBar[spellIndex]->GetSpellCost();
     return 0 <= (GetCurrentOil() - spellCost);
@@ -774,13 +774,15 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
   DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
-
+  
   // Value is only relevant to owner
   DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, maxOil, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsDying, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, bCastingEnabled, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBuffDebuffConfig, COND_OwnerOnly);
 
@@ -814,6 +816,46 @@ void ABBotCharacter::SwitchTeams()
     }
   }
 }
+
+void ABBotCharacter::TurnOff()
+{
+  //Disable spell casting
+  EnableSpellCasting(false);
+
+  if (GetMesh())
+  {
+    GetMesh()->TickAnimation(2.0f);
+    GetMesh()->RefreshBoneTransforms();
+  }
+
+  Super::TurnOff();
+}
+
+void ABBotCharacter::EnableSpellCasting(bool bCanCast)
+{
+  ServerEnableSpellCasting(bCanCast);
+}
+
+void ABBotCharacter::ServerEnableSpellCasting_Implementation(bool bCanCast)
+{
+  this->bCastingEnabled = bCanCast;
+}
+
+bool ABBotCharacter::ServerEnableSpellCasting_Validate(bool bCanCast)
+{
+  return true;
+}
+
+void ABBotCharacter::ServerSetIsDying_Implementation(bool bDying)
+{
+  bIsDying = bDying;
+}
+
+bool ABBotCharacter::ServerSetIsDying_Validate(bool bDying)
+{
+  return true;
+}
+
 
 
 

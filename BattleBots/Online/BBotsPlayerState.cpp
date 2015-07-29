@@ -22,6 +22,13 @@ void ABBotsPlayerState::Reset()
   numDeaths = 0;
 }
 
+
+void ABBotsPlayerState::Reset_Implementation()
+{
+  // Resets score to initial state
+  Reset();
+}
+
 void ABBotsPlayerState::UnregisterPlayerWithSession()
 {
   if (!bFromPreviousLevel)

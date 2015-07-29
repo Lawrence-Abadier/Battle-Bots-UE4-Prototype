@@ -4,6 +4,7 @@
 #include "AIController.h"
 #include "Controllers/BBotsBasePC.h"
 #include "BattleBotsGameMode.h"
+#include "Interfaces/BBotsResetInterface.h"
 #include "GameFramework/PlayerController.h"
 #include "BattleBotsPlayerController.generated.h"
 
@@ -11,7 +12,7 @@
 class ABBotCharacter;
 
 UCLASS()
-class ABattleBotsPlayerController : public ABBotsBasePC
+class ABattleBotsPlayerController : public ABBotsBasePC, public IBBotsResetInterface
 {
 	GENERATED_BODY()
 
@@ -32,6 +33,9 @@ protected:
 	virtual void PlayerTick(float DeltaTime) override;
 	virtual void SetupInputComponent() override;
 	// End PlayerController interface
+
+  // Reference current pawn
+  virtual void OnRep_Pawn();
 
   ABBotCharacter* ReferencePossessedPawn();
 	/** Navigate player to the current mouse cursor location. */
@@ -103,17 +107,33 @@ private:
   FVector GetLineOfSightImpactPoint();
 
   /************************************************************************/
-  /* Respawning and Spectating                                            */
+  /* Respawning, Spectating, and Round End                                */
   /************************************************************************/
 public:
+  /** Reset player to initial spawn point */
+  virtual void Reset() override;
+
+  // Interface call on match reset.
+  virtual void Reset_Implementation() override;
+
+  // If no teamate to spectate, go to death cam
+  virtual void ViewAPlayer(int32 dir) override;
+
   // Starts spectating on dead players
   void StartSpectating();
+
+  /** sets spectator location and rotation */
+  UFUNCTION(Reliable, Client)
+  void ClientSetSpectatorCamera(FVector CameraLocation, FRotator CameraRotation);
 
   // Returns time till spawn
   UFUNCTION(BlueprintCallable, Category = "Respawn")
   float GetTimeTillSpawn();
 
 protected:
+  // ReInitializes values post game reset
+  void InitPostRoundReset();
+
   /** update camera when pawn dies and enable spectating if applicable.*/
   virtual void PawnPendingDestroy(APawn* deadPawn) override;
 
@@ -121,12 +141,16 @@ protected:
   UFUNCTION()
   virtual void RespawnPlayer();
 
+  // Used for death cam location/rotation
+  FVector CameraLocation;
+  FRotator CameraRotation;
+
 private:
   // The current GM in play
   ABattleBotsGameMode* currGM;
 
   // Whether to respawn or spectate on death
-  bool bCanRespawn;
+  bool bCanRespawnInstantly;
 
   // Respawns the player after respawn timer is up
   FTimerHandle RespawnHandler;
