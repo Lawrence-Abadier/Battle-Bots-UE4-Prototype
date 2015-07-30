@@ -25,9 +25,7 @@ public:
   virtual void Killed(AController* killer, AController* killedPlayer, APawn* killedPawn, const TSubclassOf<UDamageType> DamageType);
 
   /** can players damage each other? */
-  virtual bool CanDealDamage(class ABBotsPlayerState* damageInstigator, class ABBotsPlayerState* damagedPlayer) const;
-
-  virtual bool CanDealDamageTest(AController* damageInstigator, AController* damagedPlayer) const;
+  virtual bool CanDealDamage(AController* damageInstigator, AController* damagedPlayer) const;
 
   /** called before startmatch */
   virtual void HandleMatchIsWaitingToStart() override;

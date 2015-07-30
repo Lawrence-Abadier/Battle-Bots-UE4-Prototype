@@ -150,32 +150,27 @@ bool ABBotCharacter::IsAlive() const
 }
 
 
-bool ABBotCharacter::CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType)
+bool ABBotCharacter::CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType) const
 {
-  //   if (GetBBOTController())
-  //   {
-  // 	  ABBotsPlayerState* damagedPlayerState = Cast<ABBotsPlayerState>(PlayerState);
-  // 	  ABBotsPlayerState* instigatorPlayerState = Cast<ABBotsPlayerState>(damageInstigator->PlayerState);
-  // 	  return GetWorld()->GetAuthGameMode<ABattleBotsGameMode>()->CanDealDamage(instigatorPlayerState, damagedPlayerState);
-  //   }
-  //   return false;
   if (HasAuthority())
   {
-    ABattleBotsGameMode* GM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
-    return GM->CanDealDamageTest(damageInstigator, GetBBOTController());
+     ABattleBotsGameMode* GM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
+     if (GM)
+       return GM->CanDealDamage(damageInstigator, Controller);
   }
   return false;
+}
+
+
+bool ABBotCharacter::ShouldTakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const
+{
+  return Super::ShouldTakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser)
+      && CanRecieveDamage(EventInstigator, DamageEvent.DamageTypeClass);
 }
 
 // Take damage and handle death
 float ABBotCharacter::TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser)
 {
-  // Check to see if the damage was caused from a teammate
-  if (!CanRecieveDamage(EventInstigator, DamageEvent.DamageTypeClass))
-  {
-    return 0.f;
-  }
-
   if (health <= 0.f) {
     return 0.f;
   }

@@ -75,7 +75,7 @@ public:
   /* Player Input and Collision                                           */
   /************************************************************************/
 public:
-  FORCEINLINE ABattleBotsPlayerController* GetBBOTController() 
+  FORCEINLINE ABattleBotsPlayerController* GetBBOTController()
   { 
     playerController = (Controller != NULL) ? Cast<ABattleBotsPlayerController>(Controller) : Cast<ABattleBotsPlayerController>(GetOwner());
     return playerController; 
@@ -233,11 +233,13 @@ public:
 
   FORCEINLINE void SetIsDying(bool bDying) { ServerSetIsDying(bIsDying); }
 
+  // Is called before take damage
+  virtual bool ShouldTakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const override;
   // Take damage and handle death
   virtual float TakeDamage(float Damage, struct FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
   
   // Checks to see if the character can recieve damage (Teamates, immunity, etc)
-  virtual bool CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType);
+  virtual bool CanRecieveDamage(AController* damageInstigator, const TSubclassOf<UDamageType> DamageType) const;
 
   // Used for round reset
   virtual void TurnOff() override;

@@ -66,7 +66,7 @@ void ABattleBotsGameMode::DefaultTimer()
 
   if (MyGameState && GameInstance
     && MyGameState->GetRoundsThisMatch() < maxNumOfRounds
-    && MyGameState->remainingTime > 0
+    /*&& MyGameState->remainingTime > 0*/
     && !MyGameState->bTimerPaused)
   {
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(MyGameState->GetRoundsThisMatch()));
@@ -74,6 +74,12 @@ void ABattleBotsGameMode::DefaultTimer()
 
     if (MyGameState->remainingTime <= 0)
     {
+       if (MyGameState->GetRoundsThisMatch() < maxNumOfRounds)
+       {
+        EndOfRoundReset();
+        MyGameState->remainingTime = roundTime;
+       }
+      
       if (GetMatchState() == MatchState::WaitingPostMatch)
       {
         MyGameState->IncRoundsThisMatch();
@@ -207,17 +213,11 @@ void ABattleBotsGameMode::Killed(AController* killer, AController* killedPlayer,
   }
 }
 
-bool ABattleBotsGameMode::CanDealDamage(class ABBotsPlayerState* damageInstigator, class ABBotsPlayerState* damagedPlayer) const
+bool ABattleBotsGameMode::CanDealDamage(AController* damageInstigator, AController* damagedPlayer) const
 {
   if (bAllowFriendlyFireDamage)
-  {
     return true;
-  }
-  return damageInstigator && damagedPlayer && (damageInstigator->GetTeamNum() != damagedPlayer->GetTeamNum());
-}
-
-bool ABattleBotsGameMode::CanDealDamageTest(AController* damageInstigator, AController* damagedPlayer) const
-{
+  
   ABBotsPlayerState* killerPlayerState = damageInstigator ? Cast<ABBotsPlayerState>(damageInstigator->PlayerState) : NULL;
   ABBotsPlayerState* victimPlayerState = damagedPlayer ? Cast<ABBotsPlayerState>(damagedPlayer->PlayerState) : NULL;
 
