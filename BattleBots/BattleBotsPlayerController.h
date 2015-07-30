@@ -73,9 +73,9 @@ protected:
 
 private:
   // A reference to the possessed pawn
-  UPROPERTY()
+  UPROPERTY(Replicated)
   ABBotCharacter* playerCharacter;
-  
+
   // Used for replicating rotation on the client
   UPROPERTY(Replicated)
   FRotator localRotation;
@@ -91,9 +91,6 @@ private:
   // Rotation is only updated if true
   bool bRotChanged;
 
-  // A simple debug function
-	bool IsPossessedBy(ABBotCharacter* Character);
-
   // Helper function for casting spells on hotbar
   void CastFromSpellBarIndex(int32 index);
 
@@ -105,6 +102,12 @@ private:
 
   // Returns an impact point of the characters line of sight
   FVector GetLineOfSightImpactPoint();
+
+
+  UFUNCTION(Reliable, Server, WithValidation)
+  void ServerReferencePawn();
+  void ServerReferencePawn_Implementation();
+  bool ServerReferencePawn_Validate();
 
   /************************************************************************/
   /* Respawning, Spectating, and Round End                                */

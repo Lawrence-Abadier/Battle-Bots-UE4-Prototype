@@ -25,6 +25,7 @@ void ABattleBotsPlayerController::BeginPlay()
 {
   Super::BeginPlay();
 
+  // Init default values on the server
   InitPostRoundReset();
 }
 
@@ -118,13 +119,6 @@ void ABattleBotsPlayerController::OnSetDestinationReleased()
   bMoveToMouseCursor = false;
 }
 
-bool ABattleBotsPlayerController::IsPossessedBy(ABBotCharacter* Character)
-{
-  ABBotCharacter* CurrentPawn = ReferencePossessedPawn();
-
-  return CurrentPawn == Character;
-}
-
 ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 {
   return Cast<ABBotCharacter>(this->GetPawn());
@@ -132,9 +126,9 @@ ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 
 void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
 {
-  // Temp work-around, replicating pointers is sometimes null
-  playerCharacter = ReferencePossessedPawn();
-  
+  if (!playerCharacter)
+    ServerReferencePawn();
+
   if (playerCharacter && playerCharacter->CanCast(index))
   {
     RotateToMouseCursor();
@@ -216,8 +210,6 @@ void ABattleBotsPlayerController::RotateToMouseCursor()
   // Replicate local actor rotation as soon as the button is clicked
   bRotChanged = true;
 
-  playerCharacter = ReferencePossessedPawn();
-
   if (playerCharacter) {
     // Get hit location under mouse click
     FVector mouseHitLoc = GetMouseHitLocation(rotObjTypes);
@@ -239,7 +231,8 @@ void ABattleBotsPlayerController::RotateToMouseCursor()
 
 void ABattleBotsPlayerController::ServerRotateToMouseCursor_Implementation(FRotator newRotation)
 {
-  playerCharacter = ReferencePossessedPawn();
+  if (!playerCharacter)
+    return;
 
   // Set the actor rotation on the server
   playerCharacter->SetActorRotation(newRotation);
@@ -256,14 +249,6 @@ bool ABattleBotsPlayerController::ServerRotateToMouseCursor_Validate(FRotator ne
 void ABattleBotsPlayerController::OnRotatationEnd()
 {
   bRotChanged = false;
-}
-
-void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-  // Value is already updated locally, so we may skip it in replication step for the owner only
-  DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, localRotation, COND_OwnerOnly);
 }
 
 void ABattleBotsPlayerController::PawnPendingDestroy(APawn* deadPawn)
@@ -369,6 +354,8 @@ void ABattleBotsPlayerController::InitPostRoundReset()
       RespawnTime = currGM->GetRespawnTime();
       RespawnDeathScale = currGM->GetRespawnDeathScale();
     }
+    // On_Rep functions dont get called on the server, so they must be called manually
+    ServerReferencePawn();
   }
 }
 void ABattleBotsPlayerController::Reset_Implementation()
@@ -381,7 +368,7 @@ void ABattleBotsPlayerController::Reset_Implementation()
       MyPawn->TurnOff();
     }
     
-    GetWorldTimerManager().SetTimer(RespawnHandler, this, &ABattleBotsPlayerController::Reset, 2.0, false);
+    GetWorldTimerManager().SetTimer(RespawnHandler, this, &ABattleBotsPlayerController::Reset, 1.0, false);
   }
 }
 
@@ -389,9 +376,28 @@ void ABattleBotsPlayerController::OnRep_Pawn()
 {
   Super::OnRep_Pawn();
 
+  // On_Rep functions dont get called on the server
+  ServerReferencePawn();
+}
+
+void ABattleBotsPlayerController::ServerReferencePawn_Implementation()
+{
   playerCharacter = ReferencePossessedPawn();
 }
 
+bool ABattleBotsPlayerController::ServerReferencePawn_Validate()
+{
+  return true;
+}
+
+void ABattleBotsPlayerController::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+  // Value is already updated locally, so we may skip it in replication step for the owner only
+  DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, localRotation, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABattleBotsPlayerController, playerCharacter, COND_OwnerOnly);
+}
 
 
 
