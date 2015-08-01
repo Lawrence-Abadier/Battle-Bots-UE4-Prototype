@@ -321,6 +321,7 @@ void ASpellSystem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
   DOREPLIFETIME_CONDITION(ASpellSystem, damageToDeal, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ASpellSystem, CDHelper, COND_OwnerOnly);
 }
 
 void ASpellSystem::AOETick(float DeltaSeconds)

@@ -121,6 +121,7 @@ public:
 
   // Can the player cast the spell while moving?
   FORCEINLINE bool CastableWhileMoving() const { return spellDataInfo.bCastableWhileMoving; }
+  FORCEINLINE bool SpellOnCD() const { return !(CDHelper < GetWorld()->GetTimeSeconds()); }
 
   /** Spawns a spell into the world. Manages internal spell cool down.*/
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
@@ -218,6 +219,7 @@ private:
   TArray<AActor*> OverlappedActors;
 
   // Spell cooldown helper
+  UPROPERTY(Replicated)
   float CDHelper;
   
   void ProcessSpellTimers();

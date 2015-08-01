@@ -129,6 +129,7 @@ void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
   if (!playerCharacter)
     ServerReferencePawn();
 
+  // We short-circuit if we can cast to prevent unnecessary calls
   if (playerCharacter && playerCharacter->CanCast(index))
   {
     RotateToMouseCursor();
@@ -218,7 +219,7 @@ void ABattleBotsPlayerController::RotateToMouseCursor()
   
   if (playerCharacter) {
     // Get hit location under mouse click
-    FVector mouseHitLoc = /*HitResult.Location;*/ GetMouseHitLocation(rotObjTypes);
+    FVector mouseHitLoc = GetMouseHitLocation(rotObjTypes);
     FVector characterLoc = playerCharacter->GetActorLocation();
 
     // Get the target location direction

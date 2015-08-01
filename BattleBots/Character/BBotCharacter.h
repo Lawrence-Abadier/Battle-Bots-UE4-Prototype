@@ -311,7 +311,7 @@ public:
   void EnableSpellCasting(bool bCanCast);
 
   FORCEINLINE bool IsSpellCastingEnabled() const { return bCastingEnabled; }
-
+  FORCEINLINE bool IsGlobalCDActive() const { return GCDHelper > GetWorld()->GetTimeSeconds(); }
 protected:
   // Array of spell classes in Spell-Bar, Required by GetClass()
   UPROPERTY(Replicated)
@@ -342,6 +342,7 @@ private:
   bool bCanCastWhileMoving;
 
   // Global cool down helper
+  UPROPERTY(Replicated)
   float GCDHelper;
   
   void CastFromSpellBar_Internal(int32 index);

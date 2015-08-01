@@ -69,7 +69,7 @@ void ABBotCharacter::BeginPlay()
 {
   Super::BeginPlay();
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("Spawning arch char"));
-  
+
   // Is called to ensure that the default stance is triggered on spawn
   OnRep_StanceChanged();
 }
@@ -154,9 +154,9 @@ bool ABBotCharacter::CanRecieveDamage(AController* damageInstigator, const TSubc
 {
   if (HasAuthority())
   {
-     ABattleBotsGameMode* GM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
-     if (GM)
-       return GM->CanDealDamage(damageInstigator, Controller);
+    ABattleBotsGameMode* GM = GetWorld()->GetAuthGameMode<ABattleBotsGameMode>();
+    if (GM)
+      return GM->CanDealDamage(damageInstigator, Controller);
   }
   return false;
 }
@@ -165,7 +165,7 @@ bool ABBotCharacter::CanRecieveDamage(AController* damageInstigator, const TSubc
 bool ABBotCharacter::ShouldTakeDamage(float Damage, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) const
 {
   return Super::ShouldTakeDamage(Damage, DamageEvent, EventInstigator, DamageCauser)
-      && CanRecieveDamage(EventInstigator, DamageEvent.DamageTypeClass);
+    && CanRecieveDamage(EventInstigator, DamageEvent.DamageTypeClass);
 }
 
 // Take damage and handle death
@@ -344,38 +344,38 @@ void ABBotCharacter::OnDeath_Implementation(float killingDamage, FDamageEvent co
   SetIsDying(true);
 
   //@TODO: Fix role authority, maybe adjust collision under authority, and ragdoll on multicast
-//   if (Role == ROLE_Authority)
-//   {
-    // Play death sound
-    UGameplayStatics::PlaySoundAtLocation(this, deathSound, GetActorLocation());
+  //   if (Role == ROLE_Authority)
+  //   {
+  // Play death sound
+  UGameplayStatics::PlaySoundAtLocation(this, deathSound, GetActorLocation());
 
-    DetachFromControllerPendingDestroy();
+  DetachFromControllerPendingDestroy();
 
-    // disable collisions on capsule
-    GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-    GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
+  // disable collisions on capsule
+  GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+  GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
 
-    if (GetMesh())
-    {
-      static FName CollisionProfileName(TEXT("Ragdoll"));
-      GetMesh()->SetCollisionProfileName(CollisionProfileName);
-    }
-    SetActorEnableCollision(true);
+  if (GetMesh())
+  {
+    static FName CollisionProfileName(TEXT("Ragdoll"));
+    GetMesh()->SetCollisionProfileName(CollisionProfileName);
+  }
+  SetActorEnableCollision(true);
 
-    // Returns the death anim's duration
-    float deathAnimDuration = PlayAnimMontage(deathAnim);
+  // Returns the death anim's duration
+  float deathAnimDuration = PlayAnimMontage(deathAnim);
 
-    // Ragdoll after the death animation has played
-    if (deathAnimDuration > 0.f)
-    {
-      // Use a local timer handle as we don't need to store it for later and we don't need to look for something to clear
-      FTimerHandle ragdollTimerHandle;
-      GetWorldTimerManager().SetTimer(ragdollTimerHandle, this, &ABBotCharacter::SetRagdollPhysics, FMath::Min(0.1f, deathAnimDuration), false);
-    }
-    else
-    {
-      SetRagdollPhysics();
-    }
+  // Ragdoll after the death animation has played
+  if (deathAnimDuration > 0.f)
+  {
+    // Use a local timer handle as we don't need to store it for later and we don't need to look for something to clear
+    FTimerHandle ragdollTimerHandle;
+    GetWorldTimerManager().SetTimer(ragdollTimerHandle, this, &ABBotCharacter::SetRagdollPhysics, FMath::Min(0.1f, deathAnimDuration), false);
+  }
+  else
+  {
+    SetRagdollPhysics();
+  }
   //}
 }
 
@@ -434,10 +434,13 @@ void ABBotCharacter::CastOnRightClick()
 bool ABBotCharacter::CanCast(int32 spellIndex)
 {
   // If the character is currently dying prevent casting.
-  if (IsSpellCastingEnabled() 
-    && !GetIsStunned() 
-    && spellBar.IsValidIndex(spellIndex) 
-    && spellBar[spellIndex]->IsValidLowLevel() 
+  if (IsSpellCastingEnabled()
+    && !GetIsStunned()
+    && spellBar.IsValidIndex(spellIndex)
+    && spellBar[spellIndex]->IsValidLowLevel()
+    && !spellBar[spellIndex]->SpellOnCD()
+    && !IsGlobalCDActive()
+    && !GetWorldTimerManager().IsTimerActive(castingSpellHandler)
     && !IsDying())
   {
     spellCost = spellBar[spellIndex]->GetSpellCost();
@@ -451,35 +454,30 @@ bool ABBotCharacter::CanCast(int32 spellIndex)
 void ABBotCharacter::CastFromSpellBar(int32 index, const FVector& HitLocation)
 {
   if (Role < ROLE_Authority) {
-    if (CanCast(index))
-    {
-      // We short-circuit if we can cast to prevent unnecessary calls
-      ServerCastFromSpellBar(index, HitLocation);
-    }
+    // We short-circuit if we can cast to prevent unnecessary calls
+    ServerCastFromSpellBar(index, HitLocation);
   }
   else {
-    if (spellBar.IsValidIndex(index) && spellBar[index]->IsValidLowLevel()) {
-      float currentTime = GetWorld()->GetTimeSeconds();
+    if (!IsGlobalCDActive()) {
 
-      if (GCDHelper < currentTime) {
-        if (CanCast(index)) {
-          // If the cast time is 0, change it to 0.01f to prevent an infinite wait with the timer
-          float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.01f : spellBar[index]->GetCastTime();
+      if (CanCast(index)) {
 
-          bCanCastWhileMoving = spellBar[index]->CastableWhileMoving();
+        // If the cast time is 0, change it to 0.01f to prevent an infinite wait with the timer
+        float castTime = spellBar[index]->GetCastTime() == 0.f ? 0.01f : spellBar[index]->GetCastTime();
 
-          // Set the spellSpawnLocation to prevent re-binding our FTimerDelegate
-          spellBar[index]->SetSpellSpawnLocation(HitLocation);
+        bCanCastWhileMoving = spellBar[index]->CastableWhileMoving();
 
-          // Attach a spellBar index payLoad to the delegate
-          castingSpellDelegate.BindUObject(this, &ABBotCharacter::CastFromSpellBar_Internal, (int32)index);
+        // Set the spellSpawnLocation to prevent re-binding our FTimerDelegate
+        spellBar[index]->SetSpellSpawnLocation(HitLocation);
 
-          // Cast the spell after cast time in seconds
-          GetWorldTimerManager().SetTimer(castingSpellHandler, castingSpellDelegate, castTime, false);
+        // Attach a spellBar index payLoad to the delegate
+        castingSpellDelegate.BindUObject(this, &ABBotCharacter::CastFromSpellBar_Internal, (int32)index);
 
-          SetCurrentOil(-spellCost);
-          GCDHelper = currentTime + characterConfig.globalCooldown;
-        }
+        // Cast the spell after cast time in seconds
+        GetWorldTimerManager().SetTimer(castingSpellHandler, castingSpellDelegate, castTime, false);
+
+        SetCurrentOil(-spellCost);
+        GCDHelper = GetWorld()->GetTimeSeconds() + characterConfig.globalCooldown;
       }
     }
   }
@@ -769,11 +767,12 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
   DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
-  
+
   // Value is only relevant to owner
   DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, maxOil, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, bIsDying, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, GCDHelper, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
