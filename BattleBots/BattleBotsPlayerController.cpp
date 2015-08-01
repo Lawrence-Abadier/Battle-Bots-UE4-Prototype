@@ -169,7 +169,10 @@ FVector ABattleBotsPlayerController::GetMouseHitLocation(const TArray<TEnumAsByt
   // Get hit result under object types (Ex: Walls, Floor, Pawn, etc)
   GetHitResultUnderCursorForObjects(ObjTypes, true, hit);
 
-  return hit.Location;
+  DrawDebugLine(GetWorld(), playerCharacter->GetActorLocation(), hit.ImpactPoint, FColor::Red, true, -1.0f, 0, 2.f);
+
+  //  We need to extend the line trace to avoid returning zero::vectors from not reaching the target
+  return hit.ImpactPoint + (hit.ImpactNormal * -1.0f);
 }
 
 FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, const FVector& End)
@@ -191,7 +194,7 @@ FHitResult ABattleBotsPlayerController::SingleLineTrace(const FVector& Start, co
     traceParams
     );
 
-  DrawDebugLine(GetWorld(), Start, hitResult.ImpactPoint, FColor::Red, true, -1.0f, 0, 2.f);
+  DrawDebugLine(GetWorld(), Start, hitResult.ImpactPoint, FColor::Green, true, -1.0f, 0, 2.f);
   return hitResult;
 }
 
@@ -201,25 +204,28 @@ FVector ABattleBotsPlayerController::GetLineOfSightImpactPoint()
   {
     return FVector::ZeroVector;
   }
-
-  return SingleLineTrace(playerCharacter->GetActorLocation(), GetMouseHitLocation(aoeObjTypes)).ImpactPoint;
+  
+  FHitResult hitResult = SingleLineTrace(playerCharacter->GetActorLocation(), GetMouseHitLocation(aoeObjTypes));
+  
+  // Return the hit location if the impact point is null
+  return hitResult.ImpactPoint.Equals(FVector::ZeroVector) ? hitResult.Location : hitResult.ImpactPoint;
 }
 
 void ABattleBotsPlayerController::RotateToMouseCursor()
 {
   // Replicate local actor rotation as soon as the button is clicked
   bRotChanged = true;
-
+  
   if (playerCharacter) {
     // Get hit location under mouse click
-    FVector mouseHitLoc = GetMouseHitLocation(rotObjTypes);
+    FVector mouseHitLoc = /*HitResult.Location;*/ GetMouseHitLocation(rotObjTypes);
     FVector characterLoc = playerCharacter->GetActorLocation();
 
     // Get the target location direction
     FVector targetLoc = (mouseHitLoc - characterLoc);
     targetLoc.Normalize();
 
-    DrawDebugLine(GetWorld(), characterLoc, mouseHitLoc, FColor::Green, true, 0.5f, 0, 2.f);
+    //DrawDebugLine(GetWorld(), characterLoc, mouseHitLoc, FColor::Green, true, 0.5f, 0, 2.f);
     FRotator newRotation(0.f, targetLoc.Rotation().Yaw, 0.f);
 
     // Stop current movement,and face the new direction
