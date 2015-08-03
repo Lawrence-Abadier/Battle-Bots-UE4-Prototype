@@ -37,6 +37,8 @@ protected:
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage) override;
 
+  virtual float GetPreProcessedDotDamage() override;
+
   // Deals damage to the actor and manages spell death. Override spell functionality, ex: Ignite, slow, etc.
   virtual void DealDamage(ABBotCharacter* enemyPlayer) override;
 

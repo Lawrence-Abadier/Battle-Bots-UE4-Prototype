@@ -13,7 +13,7 @@ void AFireSpell::PostInitializeComponents()
     // Set damage type
     defaultDamageEvent.DamageTypeClass = UBBotDmgType_Fire::StaticClass();
     // Set the ignite damage per ignite tick
-    igniteDamage = FMath::Clamp(ignitePercentage, 0.f, 1.f) * ProcessElementalDmg(spellDataInfo.spellDamage);
+    igniteDamage = FMath::Clamp(ignitePercentage, 0.f, 1.f) * ProcessElementalDmg(GetPreProcessedDotDamage());
     // Acts as an offset to prevent edge cases with odd tick durations
     igniteDelay = igniteTick / 2;
   }
@@ -32,6 +32,12 @@ float AFireSpell::ProcessElementalDmg(float initialDamage)
     return initialDamage;
   }
 }
+
+float AFireSpell::GetPreProcessedDotDamage()
+{
+  return spellDataInfo.spellDamage / igniteDuration;
+}
+
 
 FDamageEvent& AFireSpell::GetDamageEvent()
 {

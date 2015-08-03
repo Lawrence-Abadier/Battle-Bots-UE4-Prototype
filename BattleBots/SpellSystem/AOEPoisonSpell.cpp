@@ -11,25 +11,51 @@ AAOEPoisonSpell::AAOEPoisonSpell()
 {
   // Set to true to start destruction timer at instantiation.
   spellDataInfo.bIsPiercing = true;
+
+  AoeTickInterval = 0.2;
+
+  collisionComp->InitSphereRadius(200.f);
 }
 
-void AAOEPoisonSpell::Tick(float DeltaSeconds)
+void AAOEPoisonSpell::PostInitializeComponents()
 {
-  Super::Tick(DeltaSeconds);
+  Super::PostInitializeComponents();
 
-  // Process aoe dmg per tick, and add an ignite dot to the player
-  AOETick(DeltaSeconds);
+  if (HasAuthority())
+  {
+    // Sets the dmg done per tick
+    SetDamageToDeal(ProcessElementalDmg(GetPreProcessedDotDamage()));
+  }
 }
 
+void AAOEPoisonSpell::BeginPlay()
+{
+  Super::BeginPlay();
+
+  if (HasAuthority())
+  {
+    // Enables AOE Tick on spawn
+    GetWorldTimerManager().SetTimer(AOETickHandler, this, &AAOEPoisonSpell::AOETick, AoeTickInterval, true);
+  }
+}
 
 void AAOEPoisonSpell::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-  // Because the collision is managed in Tick, we need to override this method to prevent double collision processing
+  // Because the damage is managed in AOETick, we need to override this method to prevent double processing
+  ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
+
+  if (IsEnemy(enemyPlayer)) {
+    if (!OverlappedActors.Contains(enemyPlayer))
+    {
+      OverlappedActors.AddUnique(enemyPlayer);
+    }
+  }
 }
 
 void AAOEPoisonSpell::DestroySpell()
 {
   /* The spell gets automatically destroyed after spellDuration. */
+  GetWorldTimerManager().ClearTimer(AOETickHandler);
 }
 
 void AAOEPoisonSpell::SimulateExplosion_Implementation()
@@ -54,6 +80,11 @@ void AAOEPoisonSpell::DealDamage(ABBotCharacter* enemyPlayer)
   {
     UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
     // Apply damage while enemy is in the volume, then apply a poison dot.
-    Super::DealDamage(enemyPlayer);
+    DealUniqueSpellFunctionality(enemyPlayer);
   }
+}
+
+float AAOEPoisonSpell::GetPreProcessedDotDamage()
+{
+  return damagePerSecond * AoeTickInterval;
 }

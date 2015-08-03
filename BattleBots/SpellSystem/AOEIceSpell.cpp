@@ -11,25 +11,51 @@ AAOEIceSpell::AAOEIceSpell()
 {
   // Set to true to start destruction timer at instantiation.
   spellDataInfo.bIsPiercing = true;
+
+  AoeTickInterval = 0.2;
+
+  collisionComp->InitSphereRadius(200.f);
 }
 
-void AAOEIceSpell::Tick(float DeltaSeconds)
+void AAOEIceSpell::PostInitializeComponents()
 {
-  Super::Tick(DeltaSeconds);
+  Super::PostInitializeComponents();
 
-  // Process aoe dmg per tick, and add an ignite dot to the player
-  AOETick(DeltaSeconds);
+  if (HasAuthority())
+  {
+    // Sets the dmg done per tick
+    SetDamageToDeal(ProcessElementalDmg(GetPreProcessedDotDamage()));
+  }
 }
 
+void AAOEIceSpell::BeginPlay()
+{
+  Super::BeginPlay();
+
+  if (HasAuthority())
+  {
+    // Enables AOE Tick on spawn
+    GetWorldTimerManager().SetTimer(AOETickHandler, this, &AAOEIceSpell::AOETick, AoeTickInterval, true);
+  }
+}
 
 void AAOEIceSpell::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
-  // Because the collision is managed in Tick, we need to override this method to prevent double collision processing
+  // Because the damage is managed in AOETick, we need to override this method to prevent double processing
+  ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
+
+  if (IsEnemy(enemyPlayer)) {
+    if (!OverlappedActors.Contains(enemyPlayer))
+    {
+      OverlappedActors.AddUnique(enemyPlayer);
+    }
+  }
 }
 
 void AAOEIceSpell::DestroySpell()
 {
   /* The spell gets automatically destroyed after spellDuration. */
+  GetWorldTimerManager().ClearTimer(AOETickHandler);
 }
 
 void AAOEIceSpell::SimulateExplosion_Implementation()
@@ -41,4 +67,24 @@ void AAOEIceSpell::SimulateExplosion_Implementation()
 FVector AAOEIceSpell::GetSpellSpawnLocation()
 {
   return spellSpawnLocation;
+}
+
+float AAOEIceSpell::GetPreProcessedDotDamage()
+{
+  return damagePerSecond * AoeTickInterval;
+}
+
+void AAOEIceSpell::DealDamage(ABBotCharacter* enemyPlayer)
+{
+  if (Role < ROLE_Authority)
+  {
+    // Deal damage only on the server
+    ServerDealDamage(enemyPlayer);
+  }
+  else
+  {
+    UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+
+    DealUniqueSpellFunctionality(enemyPlayer);
+  }
 }

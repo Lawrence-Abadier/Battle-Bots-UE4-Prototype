@@ -59,9 +59,6 @@ public:
 
 	// Called when the game starts or when spawned
 	virtual void BeginPlay() override;
-	
-	// Called every frame
-	virtual void Tick( float DeltaSeconds ) override;
 
   /** Hides actor and disable collision */
   virtual void Reset() override;
@@ -148,6 +145,10 @@ protected:
     return GetDamageEvent().DamageTypeClass;
   }
 
+  // Holds all the overlapped actors to prevent multiple calls to dealdamage
+  UPROPERTY()
+  TArray<AActor*> OverlappedActors;
+
   // The spell spawn location (MouseHitLocation/CharacterLocation.
   FVector spellSpawnLocation;
 
@@ -161,10 +162,13 @@ protected:
   virtual void SpawnSpell_Internal(TSubclassOf<ASpellSystem> tempSpell);
 
   // Returns the spawned spell with the appropriate location. AOE spells must override this method and use HITLOC instead of GetSpellCaster()->GetActorLocation()
-/*  virtual ASpellSystem* GetSpawnedSpell(TSubclassOf<ASpellSystem> tempSpell, FActorSpawnParameters spawnParams, const FVector& HitLocation);*/
+  /* virtual ASpellSystem* GetSpawnedSpell(TSubclassOf<ASpellSystem> tempSpell, FActorSpawnParameters spawnParams, const FVector& HitLocation);*/
 
   // Processes final elemental damage post item dmg modifiers
   virtual float ProcessElementalDmg(float initialDamage);
+
+  // Short-circuits if the overlapped pawn is an enemy, to prevent unnecessary computations
+  bool IsEnemy(ABBotCharacter* possibleEnemy);
 
   // Deals damage to the actor and manages spell death. Override spell functionality, ex: Ignite, slow, etc.
   virtual void DealDamage(ABBotCharacter* enemyPlayer);
@@ -180,6 +184,12 @@ protected:
   /* Returns the duration the unique functionality duration, ex: Ignite Duration
   This prevents the spell object from getting deleted before the ignite duration is over */
   virtual float GetFunctionalityDuration();
+
+  /* Returns the damage pre elemental dmg processing. Used to set 
+  dot dmg under aoe classes (Ignite, psn-dot, etc), such as ignite effects 
+  can do more or less dmg than staying in the aoe volume.*/
+  UFUNCTION()
+  virtual float GetPreProcessedDotDamage();
 
   // Returns the final dmg to deal post dmg modifiers
   UFUNCTION()
@@ -207,17 +217,12 @@ protected:
   to be called under AOEFire/AOEIce-Tick, etc. Using an interface
   would not have solved the problem of having to implement
   the same AOETick function for every damage type.*/
-  void AOETick(float DeltaSeconds);
+  virtual void AOETick();
 
   // The spellDps, to be applied by deltaSeconds(Used with AOETick)
   float damagePerSecond;
 
 private:
-
-  // Holds all the overlapped actors to prevent multiple calls to dealdamage
-  UPROPERTY()
-  TArray<AActor*> OverlappedActors;
-
   // Spell cooldown helper
   UPROPERTY(Replicated)
   float CDHelper;
@@ -230,12 +235,9 @@ private:
   virtual void ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell);
   virtual bool ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell);
 
-  // Short-circuits if the overlapped pawn is an enemy, to prevent unnecessary computations
-  bool IsEnemy(ABBotCharacter* possibleEnemy);
-
   // IsEnemy only runs on server authority
   UFUNCTION(Reliable, Server, WithValidation)
-    void ServerIsEnemy(ABBotCharacter* possibleEnemy);
+  void ServerIsEnemy(ABBotCharacter* possibleEnemy);
   virtual void ServerIsEnemy_Implementation(ABBotCharacter* possibleEnemy);
   virtual bool ServerIsEnemy_Validate(ABBotCharacter* possibleEnemy);
 };

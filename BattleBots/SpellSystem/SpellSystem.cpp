@@ -55,7 +55,7 @@ void ASpellSystem::PostInitializeComponents()
 
     SetDamageToDeal(spellDataInfo.spellDamage);
 
-    // Sets the spell dps (Used for AOETicks)
+    // Sets the spell dps (Used for AOETicks) - Possible bug if DerivedClasses call Super::PostInitializeComponents() last
     damagePerSecond = GetDamageToDeal() / spellDataInfo.spellDuration;
     GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Yellow, FString::FromInt(damagePerSecond * 100));
   }
@@ -76,16 +76,12 @@ void ASpellSystem::BeginPlay()
   }
 }
 
-// Called every frame
-void ASpellSystem::Tick(float DeltaTime)
-{
-  Super::Tick(DeltaTime);
-}
-
 // Called when a spell collides with a player
 void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
   ABBotCharacter* enemyPlayer = Cast<ABBotCharacter>(OtherActor);
+  //@todo: Set spells to ignore each other in editor
+  ASpellSystem* otherSpell = Cast<ASpellSystem>(OtherActor);
 
   if (IsEnemy(enemyPlayer)) {
     if (!OverlappedActors.Contains(enemyPlayer))
@@ -94,6 +90,11 @@ void ASpellSystem::OnCollisionOverlapBegin(class AActor* OtherActor, class UPrim
       // The actor is removed on overlap end
       OverlappedActors.AddUnique(enemyPlayer);
     }
+  }
+  else if (!enemyPlayer && !otherSpell)
+  {
+    // If the spell collides with the wall destroy it
+    DestroySpell();
   }
 }
 
@@ -295,6 +296,11 @@ void ASpellSystem::SimulateExplosion_Implementation()
   }
 }
 
+float ASpellSystem::GetPreProcessedDotDamage()
+{
+  return spellDataInfo.spellDamage;
+}
+
 float ASpellSystem::GetDamageToDeal()
 {
   return damageToDeal;
@@ -324,28 +330,27 @@ void ASpellSystem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLife
   DOREPLIFETIME_CONDITION(ASpellSystem, CDHelper, COND_OwnerOnly);
 }
 
-void ASpellSystem::AOETick(float DeltaSeconds)
+void ASpellSystem::AOETick()
 {
-  // Get all actors overlapping the volume
-  TArray<AActor*> enemyActors;
-  collisionComp->GetOverlappingActors(enemyActors);
-
-  // Deal damage to the overlapped actors
-  for (int i = 0; i < enemyActors.Num(); i++)
+  if (HasAuthority())
   {
-    // If the actor is not the spell caster
-    if (enemyActors[i] != GetSpellCaster())
+    // No point in getting all overlapping actors if our initial collision has not picked up anything
+    if (OverlappedActors.Num() == 0)
+      return;
+
+    // Deal damage to the overlapped actors
+    for (int i = 0; i < OverlappedActors.Num(); i++)
     {
-      ABBotCharacter* enemy = Cast<ABBotCharacter>(enemyActors[i]);
+      //The enemy will never be the spellcaster, because we already did that check on collision overlap.
+      ABBotCharacter* enemy = Cast<ABBotCharacter>(OverlappedActors[i]);
 
       // Only apply damage if the actors capsule component is overlapping
-      if (IsEnemy(enemy) && collisionComp->IsOverlappingComponent(enemy->GetCapsuleComponent()))
+      if (enemy && collisionComp->IsOverlappingComponent(enemy->GetCapsuleComponent()))
       {
-        SetDamageToDeal(ProcessElementalDmg(damagePerSecond * DeltaSeconds));
-        /* Because we are checking collision and dealing damage in tick,
-        * we have to call DealDamage to ensure the enemy players get ignited.
-        */
+        /* Because we are checking collision and dealing damage in tick, we
+        have to call DealDamage to ensure the enemy players get ignited. */
         DealDamage(enemy);
+
         //@TODO: ApplyRadialDamage is an alternative method, but would have to rewire dealdamage
       }
     }
@@ -365,6 +370,7 @@ void ASpellSystem::Reset_Implementation()
   //Reset();
   Destroy();
 }
+
 
 
 

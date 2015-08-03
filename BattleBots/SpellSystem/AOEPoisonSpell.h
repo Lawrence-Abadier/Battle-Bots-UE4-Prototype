@@ -20,8 +20,10 @@ class BATTLEBOTS_API AAOEPoisonSpell : public APoisonSpell
 public:
   AAOEPoisonSpell();
 
-  // Called every frame
-  virtual void Tick(float DeltaSeconds) override;
+  // Called after all components have been initialized with default values
+  virtual void PostInitializeComponents() override;
+
+  virtual void BeginPlay() override;
 
   // Is called when a spell collides with a player.
   virtual void OnCollisionOverlapBegin(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult) override;
@@ -30,6 +32,12 @@ public:
   virtual FVector GetSpellSpawnLocation() override;
 
 protected:
+  // The rate the aoe ticks
+  UPROPERTY(EditDefaultsOnly, Category = "AOE Config")
+  float AoeTickInterval;
+
+  virtual float GetPreProcessedDotDamage() override;
+
   // Deals damage to the actor and applies a poison dot.
   virtual void DealDamage(ABBotCharacter* enemyPlayer) override;
 
@@ -41,4 +49,7 @@ protected:
   * instead uses an active fx/sound throughout the duration. */
   virtual void SimulateExplosion_Implementation() override;
 
+private:
+  // Enables AOE spells to tick
+  FTimerHandle AOETickHandler;
 };

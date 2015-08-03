@@ -14,7 +14,7 @@ void APoisonSpell::PostInitializeComponents()
     // Set the damage type of the spell to poison
     defaultDamageEvent.DamageTypeClass = UBBotDmgType_Poison::StaticClass();
     // Set the dot damage per poison tick
-    poisonDotDamage = ProcessElementalDmg(spellDataInfo.spellDamage) / poisonDuration;
+    poisonDotDamage = ProcessElementalDmg(GetPreProcessedDotDamage());
     // Acts as an offset to prevent edge cases with odd tick durations
     poisonDotDelay = poisonTick / 2;
   }
@@ -30,6 +30,11 @@ float APoisonSpell::ProcessElementalDmg(float initialDamage)
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("Caster is null - poison"));
     return initialDamage;
   }
+}
+
+float APoisonSpell::GetPreProcessedDotDamage()
+{
+  return spellDataInfo.spellDamage / poisonDuration;
 }
 
 FDamageEvent& APoisonSpell::GetDamageEvent()

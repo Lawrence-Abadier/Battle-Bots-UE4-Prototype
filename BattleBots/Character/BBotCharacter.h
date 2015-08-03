@@ -248,7 +248,7 @@ protected:
 
   /** Identifies if pawn is in its dying state */
   UPROPERTY(Replicated, VisibleAnywhere, BlueprintReadOnly, Category = "Health")
-  uint32 bIsDying : 1;
+  bool bIsDying;
 
   // Must be overridden to handle block rating on appropriate classes
   virtual float ProcessDamageTypes(float Damage, struct FDamageEvent const& DamageEvent);

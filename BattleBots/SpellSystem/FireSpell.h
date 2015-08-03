@@ -39,6 +39,8 @@ public:
   virtual FDamageEvent& GetDamageEvent() override;
 
 protected:
+  virtual float GetPreProcessedDotDamage() override;
+
   // Process unique spell functionality such as Ignite.
   virtual void DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer) override;
 

@@ -126,7 +126,9 @@ ABBotCharacter* ABattleBotsPlayerController::ReferencePossessedPawn()
 
 void ABattleBotsPlayerController::CastFromSpellBarIndex(int32 index)
 {
-  if (!playerCharacter)
+  /* If the server calls this function, the spell will spawn at the 
+  original pawns dead body. Thus, we need to update the char reference.*/
+  if (!playerCharacter || HasAuthority())
     ServerReferencePawn();
 
   // We short-circuit if we can cast to prevent unnecessary calls
