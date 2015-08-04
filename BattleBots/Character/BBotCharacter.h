@@ -23,6 +23,10 @@ struct FCharacterAttributes{
 
 	UPROPERTY(EditDefaultsOnly, Category = "Movement")
 	float movementSpeed;
+  UPROPERTY(EditDefaultsOnly, Category = "Movement")
+  float movSpeedMod_spells;
+  UPROPERTY(EditDefaultsOnly, Category = "Movement")
+  float movSpeedMod_stance;
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
 	float blockRate;
   UPROPERTY(EditDefaultsOnly, Category = "Defenses")
@@ -123,11 +127,11 @@ private:
   /************************************************************************/
 protected:
   /** animation played on death */
-  UPROPERTY(EditDefaultsOnly, Category = "Animation")
+  UPROPERTY(EditDefaultsOnly, Category = "DeathConfig")
   UAnimMontage* deathAnim;
 
   /** sound played on death, local player only */
-  UPROPERTY(EditDefaultsOnly, Category = "Pawn")
+  UPROPERTY(EditDefaultsOnly, Category = "DeathConfig")
   USoundCue* deathSound;
 
   /************************************************************************/
@@ -153,6 +157,12 @@ public:
   UFUNCTION(BlueprintCallable, Category = "PlayerCondition")
   bool IsAlive() const;
 
+  // Slow or speed up the player by x%
+  void SlowPlayer(float slowMod);
+
+  // Updates movement speed based on movSpeedMod_spells/stance
+  void UpdateMovementSpeed();
+
   // Sets the appropriate modifiers for DamageTypes speed. Ex: Bonus Fire Damage x%
   virtual void SetDamageModifier_All(float newDmgMod);
 
@@ -165,31 +175,28 @@ public:
   // Sets the resist all by x%
   void SetResistAll(float newResistanceMod);
 
+  // Returns the total movement speed modifiers
+  FORCEINLINE float GetMoveSpeedMod() const { return characterConfig.movSpeedMod_spells + characterConfig.movSpeedMod_stance; }
   // Returns the default class values
   FORCEINLINE FCharacterAttributes GetDefaultCharConfigValues() const { return GetClass()->GetDefaultObject<ABBotCharacter>()->characterConfig; }
 
   // Returns the bonus fire damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Fire() const { return FMath::Clamp(characterConfig.bonusFireDmg + spellBuffDebuffConfig.bonusFireDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Fire() const { return FMath::Clamp(characterConfig.bonusFireDmg, -1.f, 1.f); }
   // Returns the bonus lightning damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Lightning() const { return FMath::Clamp(characterConfig.bonusLightningDmg + spellBuffDebuffConfig.bonusLightningDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Lightning() const { return FMath::Clamp(characterConfig.bonusLightningDmg, -1.f, 1.f); }
   // Returns the bonus ice damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Ice() const { return FMath::Clamp(characterConfig.bonusIceDmg + spellBuffDebuffConfig.bonusIceDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Ice() const { return FMath::Clamp(characterConfig.bonusIceDmg, -1.f, 1.f); }
   // Returns the bonus holy damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Holy() const { return FMath::Clamp(characterConfig.bonusHolyDmg + spellBuffDebuffConfig.bonusHolyDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Holy() const { return FMath::Clamp(characterConfig.bonusHolyDmg, -1.f, 1.f); }
   // Returns the bonus poison damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Poison() const { return FMath::Clamp(characterConfig.bonusPoisonDmg + spellBuffDebuffConfig.bonusPoisonDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Poison() const { return FMath::Clamp(characterConfig.bonusPoisonDmg, -1.f, 1.f); }
   // Returns the bonus Physical damage from items/buffs
-  FORCEINLINE float GetDamageModifier_Physical() const { return FMath::Clamp(characterConfig.bonusPhysicalDmg + spellBuffDebuffConfig.bonusPhysicalDmg, -1.f, 1.f); }
+  FORCEINLINE float GetDamageModifier_Physical() const { return FMath::Clamp(characterConfig.bonusPhysicalDmg, -1.f, 1.f); }
 
 protected:
   // An object that holds the character configurations - Default Values + Stance Changes
   UPROPERTY(Replicated, EditDefaultsOnly, Category = "Config")
   FCharacterAttributes characterConfig;
-
-  // Handles spell buffs and debuffs
-  // Used for stance switches preventing certain edge cases.
-  UPROPERTY(Replicated, EditDefaultsOnly, Category = "SpellBuffsDebuffs")
-  FCharacterAttributes spellBuffDebuffConfig;
 
   // The character's health, variables within UStructs cannot be replicated
   UPROPERTY(EditDefaultsOnly, Transient, Category = "Health", Replicated)

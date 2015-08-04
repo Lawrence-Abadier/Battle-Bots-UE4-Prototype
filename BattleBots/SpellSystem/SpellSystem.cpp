@@ -44,9 +44,9 @@ void ASpellSystem::PostInitializeComponents()
 {
   Super::PostInitializeComponents();
 
-  // @TODO: Server side physics is too slow, find an alternative method.
+  // @TODO: Does not replicate ever tick when set on the server, set initial speed under constructor
   // Initialize the spell speed, by changing velocity to direction. Directly changing PMC->initialSpeed is a known engine bug.
-  projectileMovementComp->Velocity = projectileMovementComp->Velocity.GetSafeNormal() * spellDataInfo.spellSpeed;
+  //projectileMovementComp->Velocity = projectileMovementComp->Velocity.GetSafeNormal() * spellDataInfo.spellSpeed;
 
   if (HasAuthority())
   {

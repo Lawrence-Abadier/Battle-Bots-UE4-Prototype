@@ -244,7 +244,28 @@ bool ABBotCharacter::ServerSetDamageModifier_All_Validate(float newDmgMod)
   return true;
 }
 
-// Set the character speed by x%
+void ABBotCharacter::UpdateMovementSpeed()
+{
+  if (HasAuthority())
+  {
+    float speedMod = (1 + FMath::Clamp(GetMoveSpeedMod(), -1.f, 1.f));
+    float newSpeed = GetDefaultCharConfigValues().movementSpeed * speedMod;
+    characterConfig.movementSpeed = newSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = characterConfig.movementSpeed;
+    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Max Walk speed is: ") + FString::FromInt(GetCharacterMovement()->MaxWalkSpeed));
+  }
+}
+
+void ABBotCharacter::SlowPlayer(float slowMod)
+{
+  if (HasAuthority())
+  {
+	  characterConfig.movSpeedMod_spells += slowMod;
+    UpdateMovementSpeed();
+  }
+}
+
+// Set the character movSpeedMod_stance by x%
 void ABBotCharacter::SetMobilityModifier_All(float newSpeedMod)
 {
   if (Role < ROLE_Authority)
@@ -253,9 +274,8 @@ void ABBotCharacter::SetMobilityModifier_All(float newSpeedMod)
   }
   else
   {
-    float finalSpeedMod = 1 + FMath::Clamp(newSpeedMod, -1.f, 1.f);
-    GetCharacterMovement()->MaxWalkSpeed = characterConfig.movementSpeed*finalSpeedMod;
-    GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Max Walk speed is: ") + FString::FromInt(GetCharacterMovement()->MaxWalkSpeed));
+    characterConfig.movSpeedMod_stance = newSpeedMod;
+    UpdateMovementSpeed();
   }
 }
 
@@ -778,7 +798,6 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, bCastingEnabled, COND_OwnerOnly);
   DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBuffDebuffConfig, COND_OwnerOnly);
 
   // Replicate to every client, no special condition required
   DOREPLIFETIME(ABBotCharacter, health);

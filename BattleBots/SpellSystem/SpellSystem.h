@@ -53,7 +53,7 @@ class BATTLEBOTS_API ASpellSystem : public AActor, public IBBotsResetInterface
 public:	
 	// Sets default values for this actor's properties
 	ASpellSystem();
-
+  
   // Called after all components have been initialized with default values
   virtual void PostInitializeComponents() override;
 

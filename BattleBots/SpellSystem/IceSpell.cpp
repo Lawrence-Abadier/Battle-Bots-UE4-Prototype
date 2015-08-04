@@ -57,7 +57,7 @@ void AIceSpell::SlowEnemy(ABBotCharacter* enemyPlayer)
   if (HasAuthority())
   {
 	  //TODO: might cause bugs with stance switches
-	  enemyPlayer->SetMobilityModifier_All(MakeNegative(slowPercentage));
+    enemyPlayer->SlowPlayer(MakeNegative(slowPercentage));
   }
 }
 
@@ -66,7 +66,7 @@ void AIceSpell::SlowEnemyEnd(ABBotCharacter* enemyPlayer)
   if (HasAuthority())
   {
 	  // Reverse the slow effect once the duration is up
-	  enemyPlayer->SetMobilityModifier_All(FMath::Abs(slowPercentage));
+    enemyPlayer->SlowPlayer(FMath::Abs(slowPercentage));
 	  // Clear the timer once the duration ends
 	  GetWorldTimerManager().ClearTimer(slowMovementHandler);
   }
