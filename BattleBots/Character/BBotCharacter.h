@@ -160,6 +160,12 @@ public:
   // Slow or speed up the player by x%
   void SlowPlayer(float slowMod);
 
+  // Reduce player resistance. Used for spells/items buff/debuffs.
+  void ReducePlayerResist(float reduceBy, const TSubclassOf<UDamageType> DamageType, bool bReduceAllResist = false);
+
+  // Updates the total player resist based on default values, spell, and item buff/debuffs.
+  void UpdatePlayerResist();
+
   // Updates movement speed based on movSpeedMod_spells/stance
   void UpdateMovementSpeed();
 
@@ -232,6 +238,15 @@ protected:
     void ServerSetResistAll(float newResistanceMod);
   virtual void ServerSetResistAll_Implementation(float newResistanceMod);
   virtual bool ServerSetResistAll_Validate(float newResistanceMod);
+
+private:
+  // The all resist mod from switch stance, 60% to all, -20% etc.
+  float stanceResistMod;
+
+  // Handles spell buffs and debuffs. Used for stance switches preventing certain edge cases.
+  UPROPERTY()
+  FCharacterAttributes spellBuffDebuffConfig;
+
   /************************************************************************/
   /* Damage and Death                                                     */
   /************************************************************************/

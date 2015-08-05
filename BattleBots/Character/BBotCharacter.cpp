@@ -291,8 +291,56 @@ bool ABBotCharacter::ServerSetMobilityModifier_All_Validate(float newSpeedMod)
 
 void ABBotCharacter::SetDefenseModifier_All(float newDefenseMod)
 {
-  SetResistAll(newDefenseMod);
-  //Must be overriden with Super for classes with block rating
+  if (HasAuthority())
+  {
+	  stanceResistMod = newDefenseMod;
+	  UpdatePlayerResist();
+	  //Must be overriden with Super for classes with block rating
+  }
+}
+
+void ABBotCharacter::ReducePlayerResist(float reduceBy, const TSubclassOf<UDamageType> DamageType, bool bReduceAllResist /*= false*/)
+{
+  if (HasAuthority())
+  {
+    if (bReduceAllResist)
+      SetResistAll(reduceBy);
+
+    if (DamageType == UBBotDmgType_Physical::StaticClass()) {
+      spellBuffDebuffConfig.physicalResist += reduceBy;
+    }
+    else if (DamageType == UBBotDmgType_Ice::StaticClass()) {
+      spellBuffDebuffConfig.iceResist += reduceBy;
+    }
+    else if (DamageType == UBBotDmgType_Lightning::StaticClass()) {
+      spellBuffDebuffConfig.lightningResist += reduceBy;
+    }
+    else if (DamageType == UBBotDmgType_Holy::StaticClass()) {
+      spellBuffDebuffConfig.holyResist += reduceBy;
+    }
+    else if (DamageType == UBBotDmgType_Poison::StaticClass()) {
+      spellBuffDebuffConfig.poisonResist += reduceBy;
+    }
+    else if (DamageType == UBBotDmgType_Fire::StaticClass()) {
+      spellBuffDebuffConfig.fireResist += reduceBy;
+    }
+
+    // Update Character Resist
+    UpdatePlayerResist();
+  }
+}
+
+void ABBotCharacter::UpdatePlayerResist()
+{
+  if (HasAuthority())
+  {
+    characterConfig.fireResist = FMath::Clamp(GetDefaultCharConfigValues().fireResist + stanceResistMod + spellBuffDebuffConfig.fireResist, -1.f, 1.f);
+    characterConfig.iceResist = FMath::Clamp(GetDefaultCharConfigValues().iceResist + stanceResistMod + spellBuffDebuffConfig.iceResist, -1.f, 1.f);
+    characterConfig.lightningResist = FMath::Clamp(GetDefaultCharConfigValues().lightningResist + stanceResistMod + spellBuffDebuffConfig.lightningResist, -1.f, 1.f);
+    characterConfig.poisonResist = FMath::Clamp(GetDefaultCharConfigValues().poisonResist + stanceResistMod + spellBuffDebuffConfig.poisonResist, -1.f, 1.f);
+    characterConfig.physicalResist = FMath::Clamp(GetDefaultCharConfigValues().physicalResist + stanceResistMod + spellBuffDebuffConfig.physicalResist, -1.f, 1.f);
+    characterConfig.holyResist = FMath::Clamp(GetDefaultCharConfigValues().holyResist + stanceResistMod + spellBuffDebuffConfig.holyResist, -1.f, 1.f);
+  }
 }
 
 void ABBotCharacter::SetResistAll(float newResistanceMod)
@@ -304,12 +352,12 @@ void ABBotCharacter::SetResistAll(float newResistanceMod)
   else
   {
     //@TODO: A bit repetitive, maybe create a stance struct
-    characterConfig.fireResist = FMath::Clamp(GetDefaultCharConfigValues().fireResist + newResistanceMod, -1.f, 1.f);
-    characterConfig.iceResist = FMath::Clamp(GetDefaultCharConfigValues().iceResist + newResistanceMod, -1.f, 1.f);
-    characterConfig.lightningResist = FMath::Clamp(GetDefaultCharConfigValues().lightningResist + newResistanceMod, -1.f, 1.f);
-    characterConfig.poisonResist = FMath::Clamp(GetDefaultCharConfigValues().poisonResist + newResistanceMod, -1.f, 1.f);
-    characterConfig.physicalResist = FMath::Clamp(GetDefaultCharConfigValues().physicalResist + newResistanceMod, -1.f, 1.f);
-    characterConfig.holyResist = FMath::Clamp(GetDefaultCharConfigValues().holyResist + newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.fireResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.iceResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.lightningResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.poisonResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.physicalResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
+    spellBuffDebuffConfig.holyResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
   }
 }
 
@@ -781,30 +829,6 @@ void ABBotCharacter::SwitchCombatStance()
   }
 }
 
-void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
-{
-  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
-
-  // Value is already updated locally, so we may skip it in replication step for the owner only
-  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
-
-  // Value is only relevant to owner
-  DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, maxOil, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsDying, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, GCDHelper, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, bCastingEnabled, COND_OwnerOnly);
-  DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
-
-  // Replicate to every client, no special condition required
-  DOREPLIFETIME(ABBotCharacter, health);
-  DOREPLIFETIME(ABBotCharacter, oil);
-  DOREPLIFETIME(ABBotCharacter, currentStance);
-  DOREPLIFETIME(ABBotCharacter, combatStances);
-}
 
 void ABBotCharacter::KnockbackPlayer(FVector spellPosition)
 {
@@ -869,6 +893,30 @@ bool ABBotCharacter::ServerSetIsDying_Validate(bool bDying)
   return true;
 }
 
+void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const
+{
+  Super::GetLifetimeReplicatedProps(OutLifetimeProps);
+
+  // Value is already updated locally, so we may skip it in replication step for the owner only
+  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
+
+  // Value is only relevant to owner
+  DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, maxOil, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsDying, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, GCDHelper, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellBar_Internal, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, spellCost, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, bCastingEnabled, COND_OwnerOnly);
+  DOREPLIFETIME_CONDITION(ABBotCharacter, characterConfig, COND_OwnerOnly);
+
+  // Replicate to every client, no special condition required
+  DOREPLIFETIME(ABBotCharacter, health);
+  DOREPLIFETIME(ABBotCharacter, oil);
+  DOREPLIFETIME(ABBotCharacter, currentStance);
+  DOREPLIFETIME(ABBotCharacter, combatStances);
+}
 
 
 
