@@ -44,13 +44,10 @@ FDamageEvent& APoisonSpell::GetDamageEvent()
 
 void APoisonSpell::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  if (Role < ROLE_Authority)
+  if (HasAuthority())
   {
     // Deal damage only on the server
-    ServerDealDamage(enemyPlayer);
-  }
-  else
-  {
+
     // Deal poison damage per poisonTick on the enemy player
     DealUniqueSpellFunctionality(enemyPlayer);
 

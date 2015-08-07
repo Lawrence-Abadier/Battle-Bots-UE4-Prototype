@@ -111,11 +111,7 @@ void ABBotSorcerer::SetToDefenseStance()
 // NOT CHANGING VALUE AFTER INITIAL CALL
 void ABBotSorcerer::SetDamageModifier_All(float newDmgMod)
 {
-  if (Role < ROLE_Authority) {
-    ServerSetDamageModifier_All(newDmgMod);
-  }
-  else
-  {
+  if (HasAuthority()) {
     // Resets current mod, need an item config struct
     characterConfig.bonusFireDmg = FMath::Clamp(GetDefaultCharConfigValues().fireResist + newDmgMod, -1.f, 1.f);
     characterConfig.bonusLightningDmg = FMath::Clamp(GetDefaultCharConfigValues().bonusLightningDmg + newDmgMod, -1.f, 1.f);

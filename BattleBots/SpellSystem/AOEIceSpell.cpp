@@ -76,13 +76,10 @@ float AAOEIceSpell::GetPreProcessedDotDamage()
 
 void AAOEIceSpell::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  if (Role < ROLE_Authority)
+  if (HasAuthority())
   {
     // Deal damage only on the server
-    ServerDealDamage(enemyPlayer);
-  }
-  else
-  {
+
     UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
 
     DealUniqueSpellFunctionality(enemyPlayer);

@@ -172,11 +172,6 @@ protected:
 
   // Deals damage to the actor and manages spell death. Override spell functionality, ex: Ignite, slow, etc.
   virtual void DealDamage(ABBotCharacter* enemyPlayer);
-  
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerDealDamage(ABBotCharacter* enemyPlayer);
-  virtual void ServerDealDamage_Implementation(ABBotCharacter* enemyPlayer);;
-  virtual bool ServerDealDamage_Validate(ABBotCharacter* enemyPlayer);
 
   // Process unique spell functionality such as Ignite, Slow, Heal, Knockback, etc.
   virtual void DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer);
@@ -197,12 +192,6 @@ protected:
   // Applies ProcessElementalDmg to DamageToDeal over the server
   UFUNCTION()
   virtual void SetDamageToDeal(float newDmg);
-
-  // Server side RPC to set DamageToDeal
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetDamageToDeal(float newDmg);
-  virtual void ServerSetDamageToDeal_Implementation(float newDmg);
-  virtual bool ServerSetDamageToDeal_Validate(float newDmg);
 
   // Destroys spell after reaching a certain range or if it collides
   virtual void DestroySpell();
@@ -228,12 +217,6 @@ private:
   float CDHelper;
   
   void ProcessSpellTimers();
-
-  // Server side RPC for cast spell
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSpawnSpell(TSubclassOf<ASpellSystem> tempSpell);
-  virtual void ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell);
-  virtual bool ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell);
 
   // IsEnemy only runs on server authority
   UFUNCTION(Reliable, Server, WithValidation)

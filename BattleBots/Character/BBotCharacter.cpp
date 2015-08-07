@@ -121,22 +121,9 @@ float ABBotCharacter::GetCurrentOil() const
 // Pass in pos # to inc, or neg to decrement from current oil
 void ABBotCharacter::SetCurrentOil(float decOil)
 {
-  if (Role < ROLE_Authority) {
-    ServerSetCurrentOil(decOil);
-  }
-  else {
+  if (HasAuthority()) {
     oil = FMath::Clamp(oil + decOil, 0.f, GetMaxOil());
   }
-}
-
-void ABBotCharacter::ServerSetCurrentOil_Implementation(float decOil)
-{
-  SetCurrentOil(decOil);
-}
-
-bool ABBotCharacter::ServerSetCurrentOil_Validate(float decOil)
-{
-  return true;
 }
 
 float ABBotCharacter::GetMaxOil() const
@@ -234,16 +221,6 @@ void ABBotCharacter::SetDamageModifier_All(float newDmgMod)
   // Must be overriden
 }
 
-void ABBotCharacter::ServerSetDamageModifier_All_Implementation(float newDmgMod)
-{
-  SetDamageModifier_All(newDmgMod);
-}
-
-bool ABBotCharacter::ServerSetDamageModifier_All_Validate(float newDmgMod)
-{
-  return true;
-}
-
 void ABBotCharacter::UpdateMovementSpeed()
 {
   if (HasAuthority())
@@ -268,25 +245,11 @@ void ABBotCharacter::SlowPlayer(float slowMod)
 // Set the character movSpeedMod_stance by x%
 void ABBotCharacter::SetMobilityModifier_All(float newSpeedMod)
 {
-  if (Role < ROLE_Authority)
-  {
-    ServerSetMobilityModifier_All(newSpeedMod);
-  }
-  else
+  if (HasAuthority())
   {
     characterConfig.movSpeedMod_stance = newSpeedMod;
     UpdateMovementSpeed();
   }
-}
-
-void ABBotCharacter::ServerSetMobilityModifier_All_Implementation(float newSpeedMod)
-{
-  SetMobilityModifier_All(newSpeedMod);
-}
-
-bool ABBotCharacter::ServerSetMobilityModifier_All_Validate(float newSpeedMod)
-{
-  return true;
 }
 
 void ABBotCharacter::SetDefenseModifier_All(float newDefenseMod)
@@ -345,11 +308,7 @@ void ABBotCharacter::UpdatePlayerResist()
 
 void ABBotCharacter::SetResistAll(float newResistanceMod)
 {
-  if (Role < ROLE_Authority)
-  {
-    ServerSetResistAll(newResistanceMod);
-  }
-  else
+  if (HasAuthority())
   {
     //@TODO: A bit repetitive, maybe create a stance struct
     spellBuffDebuffConfig.fireResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
@@ -359,16 +318,6 @@ void ABBotCharacter::SetResistAll(float newResistanceMod)
     spellBuffDebuffConfig.physicalResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
     spellBuffDebuffConfig.holyResist += FMath::Clamp(newResistanceMod, -1.f, 1.f);
   }
-}
-
-void ABBotCharacter::ServerSetResistAll_Implementation(float newResistanceMod)
-{
-  SetResistAll(newResistanceMod);
-}
-
-bool ABBotCharacter::ServerSetResistAll_Validate(float newResistanceMod)
-{
-  return true;
 }
 
 bool ABBotCharacter::CanDie(float killingDamage, FDamageEvent const& DamageEvent, AController* killer, AActor* damageCauser)
@@ -679,21 +628,9 @@ bool ABBotCharacter::GetIsStunned() const
 
 void ABBotCharacter::SetIsStunned(bool stunned)
 {
-  bIsStunned = stunned;
-
-  if (Role < ROLE_Authority) {
-    ServerSetIsStunned(stunned);
+  if (HasAuthority()) {
+    bIsStunned = stunned;
   }
-}
-
-void ABBotCharacter::ServerSetIsStunned_Implementation(bool stunned)
-{
-  SetIsStunned(stunned);
-}
-
-bool ABBotCharacter::ServerSetIsStunned_Validate(bool stunned)
-{
-  return true;
 }
 
 void ABBotCharacter::OnRep_IsStunned()
@@ -750,24 +687,9 @@ EStanceType ABBotCharacter::GetCurrentStance() const
 // Setter for the current stance.
 void ABBotCharacter::SetCurrentStance(EStanceType newStance)
 {
-  if (Role < ROLE_Authority) {
-    ServerSetCurrentStance(newStance);
-  }
-  else
-  {
+  if (HasAuthority()) {
     currentStance = newStance;
   }
-}
-
-// Sets the current stance on the server
-void ABBotCharacter::ServerSetCurrentStance_Implementation(EStanceType newStance)
-{
-  SetCurrentStance(newStance);
-}
-
-bool ABBotCharacter::ServerSetCurrentStance_Validate(EStanceType newStance)
-{
-  return true;
 }
 
 // Called on mouse wheel up
@@ -832,10 +754,13 @@ void ABBotCharacter::SwitchCombatStance()
 
 void ABBotCharacter::KnockbackPlayer(FVector spellPosition)
 {
-  // @Todo: Launches character at a random direction, possible due to the spell location being too close
-  FVector kbDirection = GetActorLocation() - spellPosition;
-  FVector launchForce = (FVector)(kbDirection.Normalize() * 300); // Kb ammount
-  LaunchCharacter(launchForce, false, true);
+  if (HasAuthority())
+  {
+	  // @Todo: Launches character at a random direction, possible due to the spell location being too close
+	  FVector kbDirection = GetActorLocation() - spellPosition;
+	  FVector launchForce = (FVector)(kbDirection.Normalize() * 300); // Kb ammount
+	  LaunchCharacter(launchForce, false, true);
+  }
 }
 
 void ABBotCharacter::SwitchTeams()
@@ -898,7 +823,7 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   Super::GetLifetimeReplicatedProps(OutLifetimeProps);
 
   // Value is already updated locally, so we may skip it in replication step for the owner only
-  DOREPLIFETIME_CONDITION(ABBotCharacter, bIsStunned, COND_SkipOwner);
+  //DOREPLIFETIME_CONDITION(ABBotCharacter, X, COND_SkipOwner);
 
   // Value is only relevant to owner
   DOREPLIFETIME_CONDITION(ABBotCharacter, maxHealth, COND_OwnerOnly);
@@ -914,6 +839,7 @@ void ABBotCharacter::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLi
   // Replicate to every client, no special condition required
   DOREPLIFETIME(ABBotCharacter, health);
   DOREPLIFETIME(ABBotCharacter, oil);
+  DOREPLIFETIME(ABBotCharacter, bIsStunned);
   DOREPLIFETIME(ABBotCharacter, currentStance);
   DOREPLIFETIME(ABBotCharacter, combatStances);
 }

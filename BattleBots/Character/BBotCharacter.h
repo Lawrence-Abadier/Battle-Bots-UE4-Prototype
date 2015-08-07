@@ -219,26 +219,6 @@ protected:
   UPROPERTY(Replicated)
   float maxOil;
 
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetCurrentOil(float decOil);
-  virtual void ServerSetCurrentOil_Implementation(float decOil);
-  virtual bool ServerSetCurrentOil_Validate(float decOil);
-
-  UFUNCTION(Reliable, Server, WithValidation)
-    void ServerSetDamageModifier_All(float newDmgMod);
-  virtual void ServerSetDamageModifier_All_Implementation(float newDmgMod);
-  virtual bool ServerSetDamageModifier_All_Validate(float newDmgMod);
-
-  UFUNCTION(Reliable, Server, WithValidation)
-    void ServerSetMobilityModifier_All(float newSpeedMod);
-  virtual void ServerSetMobilityModifier_All_Implementation(float newSpeedMod);
-  virtual bool ServerSetMobilityModifier_All_Validate(float newSpeedMod);
-
-  UFUNCTION(Reliable, Server, WithValidation)
-    void ServerSetResistAll(float newResistanceMod);
-  virtual void ServerSetResistAll_Implementation(float newResistanceMod);
-  virtual bool ServerSetResistAll_Validate(float newResistanceMod);
-
 private:
   // The all resist mod from switch stance, 60% to all, -20% etc.
   float stanceResistMod;
@@ -385,11 +365,6 @@ protected:
   UPROPERTY(Transient, ReplicatedUsing = OnRep_IsStunned)
   bool bIsStunned;
 
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetIsStunned(bool stunned);
-  virtual void ServerSetIsStunned_Implementation(bool stunned);
-  virtual bool ServerSetIsStunned_Validate(bool stunned);
-
   // Called when bIsStunned changes, Disables character movement while stunned
   UFUNCTION()
   virtual void OnRep_IsStunned();
@@ -434,12 +409,6 @@ protected:
     void ServerOnRep_StanceChanged();
   virtual void ServerOnRep_StanceChanged_Implementation();
   virtual bool ServerOnRep_StanceChanged_Validate();
-
-  // Can only change current stance on the server
-  UFUNCTION(Reliable, Server, WithValidation)
-  void ServerSetCurrentStance(EStanceType newStance);
-  virtual void ServerSetCurrentStance_Implementation(EStanceType newStance);
-  virtual bool ServerSetCurrentStance_Validate(EStanceType newStance);
 
   virtual void SetToMobilityStance();
   virtual void SetToDamageStance();

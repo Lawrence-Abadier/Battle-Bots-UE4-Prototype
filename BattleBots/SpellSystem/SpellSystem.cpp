@@ -136,12 +136,7 @@ bool ASpellSystem::ServerIsEnemy_Validate(ABBotCharacter* possibleEnemy)
 // Deal basic projectile functionality and damage
 void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  if (Role < ROLE_Authority)
-  {
-    // Deal damage only on the server
-    ServerDealDamage(enemyPlayer);
-  }
-  else
+  if (HasAuthority())
   {
     if (spellDataInfo.bKnockBack)
     {
@@ -152,16 +147,6 @@ void ASpellSystem::DealDamage(ABBotCharacter* enemyPlayer)
     DealUniqueSpellFunctionality(enemyPlayer);
     DestroySpell();
   }
-}
-
-void ASpellSystem::ServerDealDamage_Implementation(ABBotCharacter* enemyPlayer)
-{
-  DealDamage(enemyPlayer);
-}
-
-bool ASpellSystem::ServerDealDamage_Validate(ABBotCharacter* enemyPlayer)
-{
-  return true;
 }
 
 void ASpellSystem::DealUniqueSpellFunctionality(ABBotCharacter* enemyPlayer)
@@ -195,10 +180,9 @@ void ASpellSystem::SpawnSpell(TSubclassOf<ASpellSystem> tempSpell)
   // Check to see if our spell object is valid and not deleted by GC
   if (this->IsValidLowLevel()) {
 
-    if (Role < ROLE_Authority) {
-      ServerSpawnSpell(tempSpell);
-    }
-    else {
+    if (HasAuthority()) {
+
+      GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Magenta, TEXT("SPAWNING!!"));
       UWorld* const World = GetWorld();
       float currentTime = World ? World->GetTimeSeconds() : 0.1f;
       if (CDHelper < currentTime) {
@@ -250,16 +234,6 @@ void ASpellSystem::ProcessSpellTimers()
   spellSpawner->SetLifeSpan(GetFunctionalityDuration() + spellDataInfo.spellDuration);
 }
 
-void ASpellSystem::ServerSpawnSpell_Implementation(TSubclassOf<ASpellSystem> tempSpell)
-{
-  SpawnSpell(tempSpell);
-}
-
-bool ASpellSystem::ServerSpawnSpell_Validate(TSubclassOf<ASpellSystem> tempSpell)
-{
-  return true;
-}
-
 FDamageEvent& ASpellSystem::GetDamageEvent()
 {
   return defaultDamageEvent;
@@ -308,17 +282,9 @@ float ASpellSystem::GetDamageToDeal()
 
 void ASpellSystem::SetDamageToDeal(float newDmg)
 {
-  ServerSetDamageToDeal(newDmg);
-}
-
-void ASpellSystem::ServerSetDamageToDeal_Implementation(float newDmg)
-{
-  damageToDeal = newDmg;
-}
-
-bool ASpellSystem::ServerSetDamageToDeal_Validate(float newDmg)
-{
-  return true;
+  if (HasAuthority()){
+    damageToDeal = newDmg;
+  }
 }
 
 void ASpellSystem::GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const

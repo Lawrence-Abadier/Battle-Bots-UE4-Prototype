@@ -71,14 +71,11 @@ FVector AAOEPoisonSpell::GetSpellSpawnLocation()
 
 void AAOEPoisonSpell::DealDamage(ABBotCharacter* enemyPlayer)
 {
-  if (Role < ROLE_Authority)
+  if (HasAuthority())
   {
     // Deal damage only on the server
-    ServerDealDamage(enemyPlayer);
-  }
-  else
-  {
     UGameplayStatics::ApplyDamage(enemyPlayer, GetDamageToDeal(), GetInstigatorController(), this, GetDamageEvent().DamageTypeClass);
+    
     // Apply damage while enemy is in the volume, then apply a poison dot.
     DealUniqueSpellFunctionality(enemyPlayer);
   }
