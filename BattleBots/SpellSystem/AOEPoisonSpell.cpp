@@ -15,6 +15,7 @@ AAOEPoisonSpell::AAOEPoisonSpell()
   AoeTickInterval = 0.2;
 
   collisionComp->InitSphereRadius(200.f);
+  collisionComp->SetCollisionProfileName(FName(TEXT("OverlapAll")));
 }
 
 void AAOEPoisonSpell::PostInitializeComponents()
