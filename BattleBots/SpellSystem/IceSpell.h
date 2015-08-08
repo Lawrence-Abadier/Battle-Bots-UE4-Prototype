@@ -26,6 +26,9 @@ public:
   // Returns the damage event and type
   virtual FDamageEvent& GetDamageEvent() override;
 
+  // Clears the slow timers
+  virtual void ClearUniqueTimers() override;
+
   // TODO: Create a custom math library
   // Returns the negative version of num 
   template<class T>
@@ -55,7 +58,7 @@ private:
   // The time at the start of the slow
   float currentTime;
 
-  // Handles the ignite timers
+  // Handles the slow player timers
   FTimerHandle slowMovementHandler;
 
   // Ignite delegate with an enemyPlayer payload

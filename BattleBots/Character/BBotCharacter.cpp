@@ -228,19 +228,50 @@ void ABBotCharacter::UpdateMovementSpeed()
     float speedMod = (1 + FMath::Clamp(GetMoveSpeedMod(), -1.f, 1.f));
     float newSpeed = GetDefaultCharConfigValues().movementSpeed * speedMod;
     characterConfig.movementSpeed = newSpeed;
-    GetCharacterMovement()->MaxWalkSpeed = characterConfig.movementSpeed;
+    GetCharacterMovement()->MaxWalkSpeed = FMath::Clamp(characterConfig.movementSpeed, minMovementSpeed, maxMovementSpeed);
     GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Green, TEXT("Max Walk speed is: ") + FString::FromInt(GetCharacterMovement()->MaxWalkSpeed));
   }
 }
 
-void ABBotCharacter::SlowPlayer(float slowMod)
+void ABBotCharacter::SlowPlayer(float slowMod, ASpellSystem* slowedBy)
 {
   if (HasAuthority())
   {
-	  characterConfig.movSpeedMod_spells += slowMod;
+	  // Only update if the new slow percentage is greater than the 1 in effect
+	  if (slowMod <= characterConfig.movSpeedMod_spells)
+	  {
+	    /* Update the current slowed by spell, since we just got hit by a more 
+	    powerful slow effect and must clear the timers of the previous spell.*/
+	    if (currentSlowSpell)
+	    {
+	      currentSlowSpell->ClearUniqueTimers();	      
+	    }
+	    
+	    currentSlowSpell = slowedBy;
+	
+	    // Only 1 spell slow is active at a time.
+		  characterConfig.movSpeedMod_spells = slowMod;
+	    UpdateMovementSpeed();
+	  }
+    else
+    {
+      /* There is already a more powerful spell in place. This prevents the 
+      weaker spell from clearing the slow effect of the stronger spell.*/
+      slowedBy->ClearUniqueTimers();
+    }
+  }
+}
+
+
+void ABBotCharacter::ClearSlow()
+{
+  if (HasAuthority())
+  {
+    characterConfig.movSpeedMod_spells = 0;
     UpdateMovementSpeed();
   }
 }
+
 
 // Set the character movSpeedMod_stance by x%
 void ABBotCharacter::SetMobilityModifier_All(float newSpeedMod)
@@ -269,23 +300,26 @@ void ABBotCharacter::ReducePlayerResist(float reduceBy, const TSubclassOf<UDamag
     if (bReduceAllResist)
       SetResistAll(reduceBy);
 
-    if (DamageType == UBBotDmgType_Physical::StaticClass()) {
-      spellBuffDebuffConfig.physicalResist += reduceBy;
-    }
-    else if (DamageType == UBBotDmgType_Ice::StaticClass()) {
-      spellBuffDebuffConfig.iceResist += reduceBy;
-    }
-    else if (DamageType == UBBotDmgType_Lightning::StaticClass()) {
-      spellBuffDebuffConfig.lightningResist += reduceBy;
-    }
-    else if (DamageType == UBBotDmgType_Holy::StaticClass()) {
-      spellBuffDebuffConfig.holyResist += reduceBy;
-    }
-    else if (DamageType == UBBotDmgType_Poison::StaticClass()) {
-      spellBuffDebuffConfig.poisonResist += reduceBy;
-    }
-    else if (DamageType == UBBotDmgType_Fire::StaticClass()) {
-      spellBuffDebuffConfig.fireResist += reduceBy;
+    if (!bReduceAllResist)
+    {
+	    if (DamageType == UBBotDmgType_Physical::StaticClass()) {
+	      spellBuffDebuffConfig.physicalResist += reduceBy;
+	    }
+	    else if (DamageType == UBBotDmgType_Ice::StaticClass()) {
+	      spellBuffDebuffConfig.iceResist += reduceBy;
+	    }
+	    else if (DamageType == UBBotDmgType_Lightning::StaticClass()) {
+	      spellBuffDebuffConfig.lightningResist += reduceBy;
+	    }
+	    else if (DamageType == UBBotDmgType_Holy::StaticClass()) {
+	      spellBuffDebuffConfig.holyResist += reduceBy;
+	    }
+	    else if (DamageType == UBBotDmgType_Poison::StaticClass()) {
+	      spellBuffDebuffConfig.poisonResist += reduceBy;
+	    }
+	    else if (DamageType == UBBotDmgType_Fire::StaticClass()) {
+	      spellBuffDebuffConfig.fireResist += reduceBy;
+	    }
     }
 
     // Update Character Resist

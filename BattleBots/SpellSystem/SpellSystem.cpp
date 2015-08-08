@@ -182,7 +182,6 @@ void ASpellSystem::SpawnSpell(TSubclassOf<ASpellSystem> tempSpell)
 
     if (HasAuthority()) {
 
-      GEngine->AddOnScreenDebugMessage(-1, 4.f, FColor::Magenta, TEXT("SPAWNING!!"));
       UWorld* const World = GetWorld();
       float currentTime = World ? World->GetTimeSeconds() : 0.1f;
       if (CDHelper < currentTime) {
@@ -333,8 +332,13 @@ void ASpellSystem::Reset()
 
 void ASpellSystem::Reset_Implementation()
 {
-  //Reset();
+  Reset();
   Destroy();
+}
+
+void ASpellSystem::ClearUniqueTimers()
+{
+  // Must be overriden
 }
 
 

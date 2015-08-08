@@ -158,7 +158,9 @@ public:
   bool IsAlive() const;
 
   // Slow or speed up the player by x%
-  void SlowPlayer(float slowMod);
+  void SlowPlayer(float slowMod, ASpellSystem* slowedBy);
+  // Clears the current slow effect
+  void ClearSlow();
 
   // Reduce player resistance. Used for spells/items buff/debuffs.
   void ReducePlayerResist(float reduceBy, const TSubclassOf<UDamageType> DamageType, bool bReduceAllResist = false);
@@ -219,6 +221,13 @@ protected:
   UPROPERTY(Replicated)
   float maxOil;
 
+  // The minimum movement speed from spells/stance switches
+  UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes")
+  float minMovementSpeed;
+
+  // The maximum movement speed from spells/stance switches
+  UPROPERTY(EditDefaultsOnly, Transient, Category = "Attributes")
+  float maxMovementSpeed;
 private:
   // The all resist mod from switch stance, 60% to all, -20% etc.
   float stanceResistMod;
@@ -226,6 +235,10 @@ private:
   // Handles spell buffs and debuffs. Used for stance switches preventing certain edge cases.
   UPROPERTY()
   FCharacterAttributes spellBuffDebuffConfig;
+
+  // The last actor to slow me, used to clear current slow timers.
+  UPROPERTY()
+  ASpellSystem* currentSlowSpell;
 
   /************************************************************************/
   /* Damage and Death                                                     */

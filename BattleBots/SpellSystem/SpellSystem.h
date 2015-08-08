@@ -116,6 +116,9 @@ public:
   UFUNCTION(BlueprintCallable, Category = "SpellSystem")
   float GetCastTime() const;
 
+  // Clears the current unique timers such as ignite, slow, etc.
+  virtual void ClearUniqueTimers();
+
   // Can the player cast the spell while moving?
   FORCEINLINE bool CastableWhileMoving() const { return spellDataInfo.bCastableWhileMoving; }
   FORCEINLINE bool SpellOnCD() const { return !(CDHelper < GetWorld()->GetTimeSeconds()); }
