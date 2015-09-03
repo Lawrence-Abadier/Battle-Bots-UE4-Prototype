@@ -17,7 +17,7 @@ public:
   
   // Starts the default timer to manage when the game should start
   virtual void PreInitializeComponents() override;
-
+  
   /** always pick new random spawn */
   //virtual bool ShouldSpawnAtStartSpot(AController* Player) override;
 
@@ -45,6 +45,10 @@ public:
   void FinishMatch();
 
 protected:
+
+  // Initializes the gamestate with the warm-up time
+  virtual void InitWarmupRound();
+
   // Manages game timers for starting and ending the match.
   virtual void DefaultTimer();
 
@@ -111,6 +115,10 @@ protected:
   // Whether to respawn or spectate on death
   UPROPERTY(EditDefaultsOnly, Category = "Rules")
   bool bRespawnImmediately;
+
+  // Set to true to skip round/match timers under editor mode
+  UPROPERTY(EditDefaultsOnly, Category = "Debuging")
+  bool bSkipMatchTimers;
 
   // True when warmup is over
   bool bWarmUpTimerOver;

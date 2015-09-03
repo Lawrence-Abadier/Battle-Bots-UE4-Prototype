@@ -45,14 +45,25 @@ void ABattleBotsGameMode::PreInitializeComponents()
   Super::PreInitializeComponents();
 
   /* Set timer to run every second */
-  GetWorldTimerManager().SetTimer(defaultTimerHandler, this, &ABattleBotsGameMode::DefaultTimer, 1.f/*GetWorldSettings()->GetEffectiveTimeDilation()*/, true);
-  GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::WarmUpTimeEnd, warmupTime, false);
+  GetWorldTimerManager().SetTimer(defaultTimerHandler, this, &ABattleBotsGameMode::DefaultTimer, GetWorldSettings()->GetEffectiveTimeDilation(), true);
+  // We need a timer to add a slight delay for the initialization to go through
+  GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::InitWarmupRound, 0.1f, false);
+}
+
+void ABattleBotsGameMode::InitWarmupRound()
+{
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+
+  if (MyGameState)
+  {
+    MyGameState->remainingTime = warmupTime;
+  }
 }
 
 void ABattleBotsGameMode::DefaultTimer()
 {
   // don't update timers for Play In Editor mode, it's not real match
-  if (GetWorld()->IsPlayInEditor())
+  if (bSkipMatchTimers && GetWorld()->IsPlayInEditor())
   {
     // start match if necessary.
     if (GetMatchState() == MatchState::WaitingToStart)
@@ -61,51 +72,36 @@ void ABattleBotsGameMode::DefaultTimer()
     }
     return;
   }
-  UBBotsGameInstance* const GameInstance = Cast<UBBotsGameInstance>(GetGameInstance());
-  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
 
-  if (MyGameState && GameInstance
-    && MyGameState->GetRoundsThisMatch() < maxNumOfRounds
-    /*&& MyGameState->remainingTime > 0*/
+  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
+  GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("Time Remaining: ") + FString::FromInt(MyGameState->remainingTime));
+
+  if ( MyGameState
+    && MyGameState->GetRoundsThisMatch() <= maxNumOfRounds    
     && !MyGameState->bTimerPaused)
   {
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(MyGameState->GetRoundsThisMatch()));
+
+    // Decrement the remaining time every second
     MyGameState->remainingTime--;
 
     if (MyGameState->remainingTime <= 0)
     {
-       if (MyGameState->GetRoundsThisMatch() < maxNumOfRounds)
-       {
+      if ( MyGameState->GetRoundsThisMatch() < maxNumOfRounds
+        && GetMatchState() == MatchState::InProgress )
+      {
         EndOfRoundReset();
         MyGameState->remainingTime = roundTime;
-       }
-      
-      if (GetMatchState() == MatchState::WaitingPostMatch)
-      {
         MyGameState->IncRoundsThisMatch();
-      }
-      else if (GetMatchState() == MatchState::InProgress)
-      {
-        FinishMatch();
-
-        // Send end round events
-        for (FConstControllerIterator It = GetWorld()->GetControllerIterator(); It; ++It)
-        {
-          ABattleBotsPlayerController* PlayerController = Cast<ABattleBotsPlayerController>(*It);
-
-          if (PlayerController && MyGameState)
-          {
-            ABBotsPlayerState* PlayerState = Cast<ABBotsPlayerState>((*It)->PlayerState);
-            const bool bIsWinner = IsWinner(PlayerState);
-
-            //PlayerController->ClientSendRoundEndEvent(bIsWinner, MyGameState->ElapsedTime);
-          }
-        }
       }
       else if (GetMatchState() == MatchState::WaitingToStart)
       {
-        MyGameState->IncRoundsThisMatch();
         StartMatch();
+      }
+      else{
+        GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("FINISHING UP MATCH"));
+        // The game is over Exit to PostGame Lobby / Update LeaderBoards
+        FinishMatch();
       }
     }
   }
@@ -217,7 +213,7 @@ bool ABattleBotsGameMode::CanDealDamage(AController* damageInstigator, AControll
 {
   if (bAllowFriendlyFireDamage)
     return true;
-  
+
   ABBotsPlayerState* killerPlayerState = damageInstigator ? Cast<ABBotsPlayerState>(damageInstigator->PlayerState) : NULL;
   ABBotsPlayerState* victimPlayerState = damagedPlayer ? Cast<ABBotsPlayerState>(damagedPlayer->PlayerState) : NULL;
 

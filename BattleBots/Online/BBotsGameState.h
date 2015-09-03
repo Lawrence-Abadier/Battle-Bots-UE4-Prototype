@@ -40,7 +40,7 @@ public:
 
   /** time left for warmup / match */
   UPROPERTY(Transient, Replicated)
-  int32 remainingTime;
+  float remainingTime;
 
   /** is timer paused? */
   UPROPERTY(Transient, Replicated)
