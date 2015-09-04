@@ -46,39 +46,25 @@ void ABattleBotsGameMode::PreInitializeComponents()
 
   /* Set timer to run every second */
   GetWorldTimerManager().SetTimer(defaultTimerHandler, this, &ABattleBotsGameMode::DefaultTimer, GetWorldSettings()->GetEffectiveTimeDilation(), true);
-  // We need a timer to add a slight delay for the initialization to go through
-  GetWorldTimerManager().SetTimer(warmupTimerHandler, this, &ABattleBotsGameMode::InitWarmupRound, 0.1f, false);
-}
-
-void ABattleBotsGameMode::InitWarmupRound()
-{
-  ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
-
-  if (MyGameState)
-  {
-    MyGameState->remainingTime = warmupTime;
-  }
 }
 
 void ABattleBotsGameMode::DefaultTimer()
 {
-  // don't update timers for Play In Editor mode, it's not real match
-  if (bSkipMatchTimers && GetWorld()->IsPlayInEditor())
+  // start match if necessary.
+  if (GetMatchState() == MatchState::WaitingToStart)
   {
-    // start match if necessary.
-    if (GetMatchState() == MatchState::WaitingToStart)
-    {
-      StartMatch();
-    }
-    return;
+    StartMatch();
   }
+  // don't update timers for Play In Editor mode, it's not real match
+  if (bSkipMatchTimers && GetWorld()->IsPlayInEditor()){ return; }
 
   ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
   GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Yellow, TEXT("Time Remaining: ") + FString::FromInt(MyGameState->remainingTime));
 
-  if ( MyGameState
-    && MyGameState->GetRoundsThisMatch() <= maxNumOfRounds    
-    && !MyGameState->bTimerPaused)
+  if (MyGameState
+    && MyGameState->GetRoundsThisMatch() <= maxNumOfRounds
+    && !MyGameState->bTimerPaused
+    && GetMatchState() == MatchState::InProgress)
   {
     GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Cyan, TEXT("ROUND: ") + FString::FromInt(MyGameState->GetRoundsThisMatch()));
 
@@ -87,42 +73,16 @@ void ABattleBotsGameMode::DefaultTimer()
 
     if (MyGameState->remainingTime <= 0)
     {
-      if ( MyGameState->GetRoundsThisMatch() < maxNumOfRounds
-        && GetMatchState() == MatchState::InProgress )
+      if (MyGameState->GetRoundsThisMatch() < maxNumOfRounds)
       {
         EndOfRoundReset();
         MyGameState->remainingTime = roundTime;
         MyGameState->IncRoundsThisMatch();
       }
-      else if (GetMatchState() == MatchState::WaitingToStart)
-      {
-        StartMatch();
-      }
       else{
         GEngine->AddOnScreenDebugMessage(-1, 5.f, FColor::Magenta, TEXT("FINISHING UP MATCH"));
         // The game is over Exit to PostGame Lobby / Update LeaderBoards
         FinishMatch();
-      }
-    }
-  }
-}
-
-void ABattleBotsGameMode::HandleMatchIsWaitingToStart()
-{
-  if (bDelayedStart)
-  {
-    // start warmup if needed
-    ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
-    if (MyGameState && MyGameState->remainingTime == 0)
-    {
-      const bool bWantsMatchWarmup = !GetWorld()->IsPlayInEditor();
-      if (bWantsMatchWarmup && warmupTime > 0)
-      {
-        MyGameState->remainingTime = warmupTime;
-      }
-      else
-      {
-        MyGameState->remainingTime = 0.0f;
       }
     }
   }
@@ -135,7 +95,7 @@ void ABattleBotsGameMode::HandleMatchHasStarted()
   ABBotsGameState* const MyGameState = Cast<ABBotsGameState>(GameState);
   if (MyGameState)
   {
-    MyGameState->remainingTime = roundTime;
+    MyGameState->remainingTime = warmupTime;
   }
 
   // Notify players that the game has started

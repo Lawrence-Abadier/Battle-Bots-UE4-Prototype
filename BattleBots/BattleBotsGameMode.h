@@ -27,9 +27,6 @@ public:
   /** can players damage each other? */
   virtual bool CanDealDamage(AController* damageInstigator, AController* damagedPlayer) const;
 
-  /** called before startmatch */
-  virtual void HandleMatchIsWaitingToStart() override;
-
   /** starts new match */
   virtual void HandleMatchHasStarted() override;
 
@@ -45,10 +42,7 @@ public:
   void FinishMatch();
 
 protected:
-
-  // Initializes the gamestate with the warm-up time
-  virtual void InitWarmupRound();
-
+  
   // Manages game timers for starting and ending the match.
   virtual void DefaultTimer();
 
@@ -75,7 +69,6 @@ protected:
 
   // Handles the DefaultTimer timer - runs every second
   FTimerHandle defaultTimerHandler;
-  FTimerHandle warmupTimerHandler;
 
   // The maximum number of rounds before exiting
   UPROPERTY(EditDefaultsOnly, Category = "Rules")
