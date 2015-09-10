@@ -51,10 +51,10 @@ void ABattleBotsGameMode::PreInitializeComponents()
 void ABattleBotsGameMode::DefaultTimer()
 {
   // start match if necessary.
-  if (GetMatchState() == MatchState::WaitingToStart)
-  {
-    StartMatch();
-  }
+//   if (GetMatchState() == MatchState::WaitingToStart)
+//   {
+//     StartMatch();
+//   }
   // don't update timers for Play In Editor mode, it's not real match
   if (bSkipMatchTimers && GetWorld()->IsPlayInEditor()){ return; }
 
@@ -138,7 +138,18 @@ void ABattleBotsGameMode::FinishMatch()
 
     // set up to restart the match
     MyGameState->remainingTime = timeBetweenMatches;
+
+    // Set match is over
+    bMatchOver = true;
+    
+    // Game is over, load post game lobby or a new map
+    LoadNextMap();
   }
+}
+
+void ABattleBotsGameMode::LoadPostGameLobby()
+{
+  // @todo: replaced wit LoadNextMap
 }
 
 void ABattleBotsGameMode::DetermineMatchWinner()
@@ -224,10 +235,7 @@ void ABattleBotsGameMode::WarmUpTimeEnd()
 
 bool ABattleBotsGameMode::ReadyToStartMatch()
 {
-  if (GetMatchState() == MatchState::InProgress)
-  {
-    return bWarmUpTimerOver;
-  }
+  //@todo: DelayedStart when all players load the map
   return Super::ReadyToStartMatch();
 }
 

@@ -233,6 +233,7 @@ void ABBotCharacter::UpdateMovementSpeed()
   }
 }
 
+//@todo: might be better to move the slow timers to character instead of trying to manage multiple timers
 void ABBotCharacter::SlowPlayer(float slowMod, ASpellSystem* slowedBy)
 {
   if (HasAuthority())

@@ -16,6 +16,13 @@ class BATTLEBOTS_API ABBotsLobbyGameMode : public ABBotsBaseGameMode
 public:
   ABBotsLobbyGameMode(const FObjectInitializer& ObjectInitializer);
 	
-	
-	
+protected:
+  // Ready when all players click ready in the game lobby
+  virtual bool ReadyToEndMatch_Implementation() override;
+
+  // Run loading screen and load next map
+  virtual void EndMatch() override;
+
+  UFUNCTION(BlueprintCallable, Category = "GameLobby")
+  virtual bool ReadyToLoadMap() override;
 };

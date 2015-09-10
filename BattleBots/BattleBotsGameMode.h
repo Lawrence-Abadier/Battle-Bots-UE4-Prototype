@@ -58,8 +58,10 @@ protected:
   // The match ends when true
   virtual bool ReadyToEndMatch();
 
-  virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
+  // Loads the post game lobby
+  void LoadPostGameLobby();
 
+  virtual AActor* ChoosePlayerStart_Implementation(AController* Player) override;
 
   /* Returns a respawn spot based on team number.
   This is required so if mid match we swap team locations,
@@ -112,6 +114,9 @@ protected:
   // Set to true to skip round/match timers under editor mode
   UPROPERTY(EditDefaultsOnly, Category = "Debuging")
   bool bSkipMatchTimers;
+
+  UPROPERTY(BlueprintReadOnly, Category = "Match State")
+  bool bMatchOver;
 
   // True when warmup is over
   bool bWarmUpTimerOver;
